@@ -1,0 +1,15 @@
+[package]
+name = "pbrtrs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cgmath = { version = "0.18", features = ["serde"] }
+image = "0.24"
+threadpool = "1.8"
+serde = "1.0"
+serde_derive = "1.0"
+toml = "0.5"
+fastrand = "1.8"

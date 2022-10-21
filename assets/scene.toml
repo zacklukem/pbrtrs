@@ -1,0 +1,21 @@
+[camera]
+position = [0.0, 0.0, 0.0]
+direction = [0.0, 0.0, 1.0]
+sensor_distance = 1.0
+
+[[objects]]
+shape = 1.0 # sphere rad=1.0
+position = [0.0, 0.0, 3.0]
+
+[objects.material]
+base_color = [1.0, 0.0, 0.0]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.0
+specular_tint = 0.0
+roughness = 0.0
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
