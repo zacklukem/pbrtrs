@@ -1,4 +1,4 @@
-use crate::types::{Color, Euler, Pt2, Pt3, Rad, Scalar, Vec3};
+use crate::types::{Color, Euler, Pt2, Pt3, Scalar, Vec3};
 use cgmath::InnerSpace;
 use std::path::Path;
 
@@ -43,6 +43,25 @@ pub struct Material {
     pub sheen_tint: Texture<Scalar>,
     pub clearcoat: Texture<Scalar>,
     pub clearcoat_gloss: Texture<Scalar>,
+}
+
+#[cfg(test)]
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            base_color: Texture::Value(Color::origin()),
+            subsurface: Default::default(),
+            metallic: Default::default(),
+            specular: Default::default(),
+            specular_tint: Default::default(),
+            roughness: Default::default(),
+            anisotropic: Default::default(),
+            sheen: Default::default(),
+            sheen_tint: Default::default(),
+            clearcoat: Default::default(),
+            clearcoat_gloss: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

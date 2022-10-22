@@ -1,55 +1,66 @@
-#![feature(sync_unsafe_cell)]
 extern crate cgmath;
 extern crate core;
 extern crate fastrand;
 extern crate image;
 extern crate serde;
 extern crate serde_derive;
+extern crate show_image;
 extern crate threadpool;
 extern crate toml;
 
-use crate::image_tiler::{TiledImage, TILE_SIZE};
-use crate::types::{Color, Mat3, Pt3, R8G8B8Color, Ray, Scalar, Vec3};
+use crate::image_tiler::{ImageTile, ImageTileGenerator};
+use crate::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 
+use crate::raytracer::ray_color;
 use crate::scene::load_scene;
-use cgmath::{point3, vec3, Array, EuclideanSpace, InnerSpace};
+use cgmath::{vec3, EuclideanSpace, InnerSpace};
 use fastrand::Rng;
+use image::{Rgb, RgbImage};
+use show_image::event::WindowEvent;
+use show_image::WindowOptions;
 use std::num::NonZeroUsize;
 use std::sync::{mpsc, Arc, Mutex};
-use std::time::Duration;
+use std::thread;
 
 mod image_tiler;
 mod intersect;
+mod raytracer;
 mod scene;
 mod types;
+mod util;
 
-const NUM_SAMPLES: usize = 10000;
+const NUM_SAMPLES: usize = 100;
 const WIDTH: usize = 256;
 const HEIGHT: usize = 256;
+pub const MAX_BOUNCE: usize = 5;
 
-#[derive(Default, Clone, Copy)]
-enum TileStatus {
-    #[default]
-    NotStarted,
-    Started,
-    Finished,
-}
-
-fn main() {
-    let scene = Arc::new(load_scene("assets/scene.toml"));
+#[show_image::main]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let image_width = WIDTH;
     let image_height = HEIGHT;
+
+    let image_viewer = show_image::create_window(
+        "pbrtrs",
+        WindowOptions {
+            size: Some([image_width as u32 * 3, image_height as u32 * 3]),
+            ..WindowOptions::default()
+        },
+    )
+    .unwrap();
+
+    let scene = Arc::new(load_scene("assets/scene.toml"));
     let aspect_ratio = image_width as Scalar / image_height as Scalar;
-    let image: TiledImage<R8G8B8Color> = TiledImage::new(image_width, image_height);
+    let image_tile_generator = ImageTileGenerator::new(image_width, image_height);
 
     let pool = threadpool::ThreadPool::new(
-        std::thread::available_parallelism()
+        thread::available_parallelism()
             .map(NonZeroUsize::get)
-            .unwrap_or(4),
+            .unwrap_or(4)
+            * 2,
     );
 
     // Camera space direction basis
-    let camera_x = scene
+    let camera_x = -scene
         .camera
         .direction
         .cross(vec3(0.0, 1.0, 0.0))
@@ -60,84 +71,79 @@ fn main() {
 
     let seed_generator = Arc::new(Mutex::new(Rng::new()));
 
-    let num_tiles_height = (image_height as f64 / TILE_SIZE as f64).ceil() as usize;
-    let num_tiles_width = (image_width as f64 / TILE_SIZE as f64).ceil() as usize;
-    let tiles = Arc::new(Mutex::new(vec![
-        TileStatus::NotStarted;
-        num_tiles_height * num_tiles_width
-    ]));
+    let (image_writer_tx, image_writer_rx) = mpsc::channel();
 
-    while let Some(tile) = image.get_tile() {
+    while let Some(tile) = image_tile_generator.get_tile() {
         let seed_generator = seed_generator.clone();
         let scene = scene.clone();
-        let tiles = tiles.clone();
-        let (tile_x, tile_y) = tile.location();
-        let (tile_x, tile_y) = (tile_x / TILE_SIZE, tile_y / TILE_SIZE);
+        let image_writer_tx = image_writer_tx.clone();
         pool.execute(move || {
             {
-                tiles.lock().unwrap()[tile_x + tile_y * num_tiles_width] = TileStatus::Started;
-            }
-            let rng = {
                 let seed = seed_generator.lock().unwrap().u64(..);
-                Rng::with_seed(seed)
-            };
-            let mut tile = tile;
+                fastrand::seed(seed);
+            }
+            // Render tile
+            let mut tile: ImageTile<R8G8B8Color> = tile;
             while let Some((pixel, x, y)) = tile.next() {
                 let mut color = Color::origin();
                 for _ in 0..NUM_SAMPLES {
-                    let x = x as Scalar + rng.f32();
-                    let y = y as Scalar + rng.f32();
+                    let x = x as Scalar + scalar::rand();
+                    let y = y as Scalar + scalar::rand();
                     let x = (x / image_width as Scalar) * 2.0 - 1.0;
                     let y = ((y / image_height as Scalar) * 2.0 - 1.0) * aspect_ratio;
                     let ray_dir = camera_basis * vec3(x, y, scene.camera.sensor_distance);
                     let ray = Ray::new(scene.camera.position, ray_dir);
 
-                    let intersection = scene.intersect(&ray);
-                    if let Some(_) = intersection {
-                        color += Vec3::from_value(1.0);
-                    }
+                    color += ray_color(&ray, &scene, 0).to_vec();
                 }
                 color /= NUM_SAMPLES as Scalar;
+                color = color.map(|v| v.sqrt());
                 *pixel = color.into();
             }
-            {
-                tiles.lock().unwrap()[tile_x + tile_y * num_tiles_width] = TileStatus::Finished;
-            }
+            image_writer_tx.send(Some(tile)).unwrap();
         });
     }
 
-    let should_stop = Arc::new(Mutex::new(false));
-    let should_stop_owned = should_stop.clone();
+    // Draw tiles to image preview
 
-    let print_thread = std::thread::spawn(move || {
-        while !*should_stop.lock().unwrap() {
-            {
-                println!("Status:");
-                let tiles = tiles.lock().unwrap();
-                for x in 0..num_tiles_width {
-                    for y in 0..num_tiles_height {
-                        print!(
-                            "{}",
-                            match tiles[x + y * num_tiles_width] {
-                                TileStatus::Started => '*',
-                                TileStatus::NotStarted => '.',
-                                TileStatus::Finished => 'X',
-                            }
-                        )
-                    }
-                    println!();
-                }
-            }
-            std::thread::sleep(Duration::from_secs(1));
-        }
+    let pool_ender_thread = thread::spawn(move || {
+        pool.join();
+        image_writer_tx.send(None).unwrap();
     });
 
-    pool.join();
+    let mut output_image =
+        RgbImage::from_pixel(image_width as u32, image_height as u32, Rgb([80, 80, 80]));
 
-    *should_stop_owned.lock().unwrap() = true;
+    while let Some(tile) = image_writer_rx.recv().unwrap() {
+        let (tile_x, tile_y) = tile.location();
+        let (width, height) = tile.dimensions();
+        for x in 0..width {
+            for y in 0..height {
+                let (image_x, image_y) = (x + tile_x, y + tile_y);
 
-    print_thread.join().unwrap();
+                let pixel = *tile.get(x + y * width);
 
-    let image = image.to_data().to_rgb_image().unwrap();
-    image.save("out.png").unwrap();
+                output_image.put_pixel(image_x as u32, image_y as u32, pixel.into());
+            }
+        }
+        image_viewer
+            .set_image("image", output_image.clone())
+            .unwrap();
+    }
+
+    pool_ender_thread.join().unwrap();
+
+    output_image.save("out.png").unwrap();
+
+    let window_rx = image_viewer.event_channel().unwrap();
+    loop {
+        match window_rx.recv().unwrap() {
+            WindowEvent::CloseRequested(_) => {
+                break;
+            }
+            _ => (),
+        };
+    }
+
+    Ok(())
 }

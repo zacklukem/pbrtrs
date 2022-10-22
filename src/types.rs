@@ -1,8 +1,19 @@
 #![allow(unused)]
+
 use cgmath::{InnerSpace, Matrix2, Matrix3, Matrix4, Point2, Point3, Vector2, Vector3, Vector4};
 use image::{Luma, LumaA, Pixel, Rgb, Rgba};
+use std::ops::Index;
 
 pub type Scalar = f32;
+
+pub mod scalar {
+    use super::Scalar;
+    pub use std::f32::consts;
+
+    pub fn rand() -> Scalar {
+        fastrand::f32()
+    }
+}
 
 pub type Rad = cgmath::Rad<Scalar>;
 
@@ -24,6 +35,22 @@ pub type Quaternion = cgmath::Quaternion<Scalar>;
 pub type Euler = cgmath::Euler<Scalar>;
 
 pub type Color = Pt3;
+
+#[inline]
+pub const fn color(r: Scalar, g: Scalar, b: Scalar) -> Color {
+    Color::new(r, g, b)
+}
+
+pub mod color {
+
+    use super::{color, Color};
+
+    pub const WHITE: Color = color(1.0, 1.0, 1.0);
+    pub const BLACK: Color = color(0.0, 0.0, 0.0);
+    pub const RED: Color = color(1.0, 0.0, 0.0);
+    pub const GREEN: Color = color(0.0, 1.0, 0.0);
+    pub const BLUE: Color = color(0.0, 0.0, 1.0);
+}
 
 #[derive(Debug)]
 pub struct Ray {
@@ -52,6 +79,20 @@ impl Ray {
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct R8G8B8Color([u8; 3]);
 
+impl Index<usize> for R8G8B8Color {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl Into<Rgb<u8>> for R8G8B8Color {
+    fn into(self) -> Rgb<u8> {
+        Rgb(self.0)
+    }
+}
+
 impl From<Color> for R8G8B8Color {
     fn from(value: Color) -> R8G8B8Color {
         let value = value.map(|el| {
@@ -74,20 +115,19 @@ impl IntoIterator for R8G8B8Color {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cgmath::point3;
 
     #[test]
     fn color_to_r8g8b8() {
         assert_eq!(
-            R8G8B8Color::from(point3(1.0, 1.0, 1.0)),
+            R8G8B8Color::from(color(1.0, 1.0, 1.0)),
             R8G8B8Color([255, 255, 255])
         );
         assert_eq!(
-            R8G8B8Color::from(point3(0.0, 0.0, 0.0)),
+            R8G8B8Color::from(color(0.0, 0.0, 0.0)),
             R8G8B8Color([0, 0, 0])
         );
         assert_eq!(
-            R8G8B8Color::from(point3(0.5, 0.5, 0.5)),
+            R8G8B8Color::from(color(0.5, 0.5, 0.5)),
             R8G8B8Color([128, 128, 128])
         );
     }
