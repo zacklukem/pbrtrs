@@ -15,8 +15,6 @@ pub mod scalar {
     }
 }
 
-pub type Rad = cgmath::Rad<Scalar>;
-
 pub type Basis2 = cgmath::Basis2<Scalar>;
 pub type Basis3 = cgmath::Basis3<Scalar>;
 
@@ -42,14 +40,19 @@ pub const fn color(r: Scalar, g: Scalar, b: Scalar) -> Color {
 }
 
 pub mod color {
-
-    use super::{color, Color};
+    use super::{color, Color, Scalar};
+    use cgmath::ElementWise;
 
     pub const WHITE: Color = color(1.0, 1.0, 1.0);
     pub const BLACK: Color = color(0.0, 0.0, 0.0);
     pub const RED: Color = color(1.0, 0.0, 0.0);
     pub const GREEN: Color = color(0.0, 1.0, 0.0);
     pub const BLUE: Color = color(0.0, 0.0, 1.0);
+
+    pub fn mix(a: Color, b: Color, value: Scalar) -> Color {
+        let value = value.clamp(0.0, 1.0);
+        (a * (1.0 - value)).add_element_wise(b * value)
+    }
 }
 
 #[derive(Debug)]
@@ -87,9 +90,9 @@ impl Index<usize> for R8G8B8Color {
     }
 }
 
-impl Into<Rgb<u8>> for R8G8B8Color {
-    fn into(self) -> Rgb<u8> {
-        Rgb(self.0)
+impl From<R8G8B8Color> for Rgb<u8> {
+    fn from(value: R8G8B8Color) -> Self {
+        Rgb(value.0)
     }
 }
 

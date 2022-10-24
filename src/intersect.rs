@@ -1,4 +1,4 @@
-use crate::scene::{Material, Scene, Shape};
+use crate::scene::{Material, SampledMaterial, Scene, Shape};
 use crate::types::{Mat4, Pt2, Pt3, Ray, Scalar, Vec3};
 use cgmath::{point2, EuclideanSpace, InnerSpace, Transform3};
 
@@ -7,6 +7,7 @@ pub struct Intersection<'mat> {
     pub normal: Vec3,
     pub point: Pt3,
     pub material: &'mat Material,
+    pub sampled_material: SampledMaterial,
     pub uv: Pt2,
 }
 
@@ -34,12 +35,14 @@ impl Shape {
                         None
                     } else {
                         let point = ray.at(t);
+                        let uv = point2(0.0, 0.0); // TODO
                         Some(Intersection {
                             distance: t,
                             point,
                             normal: (point - sphere_center).normalize(),
                             material,
-                            uv: point2(0.0, 0.0), // TODO
+                            sampled_material: material.sample(uv),
+                            uv,
                         })
                     }
                 }
