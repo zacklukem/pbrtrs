@@ -79,8 +79,7 @@ pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -
         denominator = 0.0001;
     }
 
-    debugger::ray_print!(
-        " r_i: {:?}, r_o: {:?} ,hv: {:?}, cos_theta_d: {}, d: {}, f_0: {:?}, f: {:?}, g: {}, den: {} ",
+    debugger::ray_debug! {
         ray_in.direction,
         ray_out.direction,
         half_vector,
@@ -90,7 +89,7 @@ pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -
         f_schlick,
         g_schlick_ggx,
         denominator
-    );
+    }
 
     Color::from_vec(dfg / denominator)
 }
@@ -132,7 +131,7 @@ pub fn ray_color(ray_in: &Ray, scene: &Scene, depth: usize) -> Color {
         let diffuse_radiance_in = ray_color(&ray_out, scene, depth + 1);
         let diffuse = diffuse_brdf(&intersection, ray_in, &ray_out);
 
-        debugger::ray_print!(" Diffuse: {:?}, Specular: {:?} ", diffuse, specular);
+        debugger::ray_debug! { diffuse, specular }
 
         let k_d = 1.0 - metallic;
         let k_s = 1.0;

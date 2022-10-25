@@ -35,7 +35,7 @@ mod debugger;
 use crate::debugger::debug_info;
 
 #[cfg(feature = "enable_debugger")]
-const DEBUG_PIXEL: (usize, usize) = (0, 0);
+const DEBUG_PIXEL: (usize, usize) = (200, 200);
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

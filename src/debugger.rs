@@ -46,17 +46,28 @@ pub mod inner {
             }
         }
 
-        fn write(&self, f: &mut impl IoWrite, indent_len: usize) -> IoResult<()> {
-            let indent = String::from_iter((0..indent_len).map(|_| '\t'));
+        fn write(&self, f: &mut impl IoWrite, mut indent_len: usize) -> IoResult<()> {
+            let mut indent = String::from_iter((0..indent_len).map(|_| '\t'));
+            writeln!(f, "{indent}ray: {{")?;
+            indent += "\t";
             writeln!(
                 f,
                 "{indent}color: {} {} {}",
                 self.final_color.x, self.final_color.y, self.final_color.z
             )?;
-            writeln!(f, "{indent}debug: \"{}\"", self.debug_info)?;
+            if self.debug_info.len() < 10 && !self.debug_info.contains('\n') {
+                writeln!(f, "{indent}debug: {}", self.debug_info)?;
+            } else {
+                writeln!(f, "{indent}debug: ")?;
+                for line in self.debug_info.lines() {
+                    writeln!(f, "{indent}\t{line}")?;
+                }
+            }
             for child in &self.children {
                 child.write(f, indent_len + 1)?;
             }
+            indent.pop();
+            writeln!(f, "{indent}}}")?;
             Ok(())
         }
     }
@@ -161,6 +172,23 @@ macro_rules! ray_print {
 
 #[allow(unused)]
 pub(crate) use ray_print;
+
+#[allow(unused)]
+macro_rules! ray_debug {
+    ($($arg:expr),*) => {{
+        #[cfg(feature = "enable_debugger")]
+        $crate::debugger::inner::ray_write(format_args!(
+            concat!(
+                file!(), ":", line!(), ":\n",
+                $("\t", stringify!($arg), ": {:?}\n"),*
+            ),
+            $($arg),*
+        ));
+    }};
+}
+
+#[allow(unused)]
+pub(crate) use ray_debug;
 
 macro_rules! begin_ray {
     () => {
