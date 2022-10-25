@@ -14,12 +14,11 @@ use crate::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 use crate::raytracer::ray_color;
 use crate::scene::load_scene;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
-use fastrand::Rng;
 use image::{Rgb, RgbImage};
 use show_image::event::WindowEvent;
 use show_image::WindowOptions;
 use std::num::NonZeroUsize;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -32,6 +31,9 @@ mod util;
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Deterministic rendering
+    fastrand::seed(0x8815_6e97_8ca3_1877);
+
     println!("Loading scene...");
     let scene = Arc::new(load_scene("assets/scene.toml"));
     println!("Rendering...");
@@ -71,22 +73,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let camera_z = scene.camera.direction.normalize();
     let camera_basis = Mat3::from([camera_x.into(), camera_y.into(), camera_z.into()]);
 
-    let seed_generator = Arc::new(Mutex::new(Rng::new()));
-
     let (image_writer_tx, image_writer_rx) = mpsc::channel();
 
     // start of rt
     let rt_start = Instant::now();
 
     while let Some(tile) = image_tile_generator.get_tile() {
-        let seed_generator = seed_generator.clone();
         let scene = scene.clone();
         let image_writer_tx = image_writer_tx.clone();
+        let seed = fastrand::u64(..);
         pool.execute(move || {
-            {
-                let seed = seed_generator.lock().unwrap().u64(..);
-                fastrand::seed(seed);
-            }
+            fastrand::seed(seed);
             // Render tile
             let mut tile: ImageTile<R8G8B8Color> = tile;
             while let Some((pixel, x, y)) = tile.next() {
