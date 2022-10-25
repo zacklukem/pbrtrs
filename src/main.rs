@@ -8,12 +8,12 @@ extern crate show_image;
 extern crate threadpool;
 extern crate toml;
 
-use crate::image_tiler::{ImageTile, ImageTileGenerator, TILE_SIZE};
-use crate::types::{color, scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
+use crate::image_tiler::{ImageTile, ImageTileGenerator};
+use crate::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 
 use crate::raytracer::ray_color;
-use crate::scene::{load_scene, Scene};
-use cgmath::{point3, vec2, vec3, EuclideanSpace, InnerSpace, SquareMatrix, Transform};
+use crate::scene::load_scene;
+use cgmath::{vec3, EuclideanSpace, InnerSpace};
 use fastrand::Rng;
 use image::{Rgb, RgbImage};
 use show_image::event::WindowEvent;
@@ -32,7 +32,9 @@ mod util;
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Loading scene...");
     let scene = Arc::new(load_scene("assets/scene.toml"));
+    println!("Rendering...");
 
     let image_width = scene.camera.width;
     let image_height = scene.camera.height;
@@ -104,6 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 *pixel = color.into();
             }
 
+            #[cfg(feature = "enable_axis")]
             if tile.location() == (0, 0) {
                 draw_axis(&mut tile, &scene);
             }
@@ -167,7 +170,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn draw_axis(tile: &mut ImageTile<R8G8B8Color>, scene: &Scene) {
+#[cfg(feature = "enable_axis")]
+fn draw_axis(tile: &mut ImageTile<R8G8B8Color>, scene: &scene::Scene) {
+    use crate::image_tiler::TILE_SIZE;
+    use crate::types::color;
+    use cgmath::{point3, vec2, SquareMatrix, Transform};
+
     let root_pt = point3(0.0, 0.0, 0.0);
     let x_pt = point3(1.0, 0.0, 0.0);
     let y_pt = point3(0.0, 1.0, 0.0);

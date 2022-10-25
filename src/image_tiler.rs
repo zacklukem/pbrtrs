@@ -61,6 +61,7 @@ impl<T> ImageTile<T> {
         &self.tile[idx]
     }
 
+    #[allow(unused)]
     pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
         self.tile.get_mut(idx)
     }

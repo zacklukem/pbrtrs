@@ -80,13 +80,23 @@ impl Ray {
 }
 
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct R8G8B8Color([u8; 3]);
+pub struct R8G8B8Color(pub [u8; 3]);
 
 impl Index<usize> for R8G8B8Color {
     type Output = u8;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
+    }
+}
+
+impl From<R8G8B8Color> for Color {
+    fn from(value: R8G8B8Color) -> Self {
+        color(
+            value.0[0] as Scalar / 255.0,
+            value.0[1] as Scalar / 255.0,
+            value.0[2] as Scalar / 255.0,
+        )
     }
 }
 
