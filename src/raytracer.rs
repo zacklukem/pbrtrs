@@ -1,12 +1,11 @@
 use crate::intersect::Intersection;
 use crate::scene::{SampledMaterial, Scene};
-use crate::types::color::{BLACK};
+use crate::types::color::BLACK;
 use crate::types::scalar::consts::PI;
 use crate::types::{color, Vec3};
 use crate::util::random_unit_vec;
-use crate::{scalar, Color, Ray};
+use crate::{debugger, scalar, Color, Ray};
 use cgmath::{Array, ElementWise, EuclideanSpace, InnerSpace};
-
 
 fn reflect(vec: Vec3, reflector: Vec3) -> Vec3 {
     -vec + 2.0 * reflector * vec.dot(reflector)
@@ -46,7 +45,12 @@ pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -
     } = intersection.sampled_material;
 
     // Common values
-    let half_vector = (-ray_in.direction + ray_out.direction).normalize();
+    let half_vector = -ray_in.direction + ray_out.direction;
+    let half_vector = if half_vector.magnitude2() <= 0.00001 {
+        ray_out.direction
+    } else {
+        half_vector.normalize()
+    };
     let cos_theta_d = ray_out.direction.dot(half_vector);
     let cos_theta_l = ray_out.direction.dot(intersection.normal);
     let cos_theta_v = -ray_in.direction.dot(intersection.normal);
@@ -63,19 +67,37 @@ pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -
 
     let k = alpha_g;
 
-    let d_tr = alpha2.max(0.1) / (PI * ((alpha2.max(0.1) - 1.0) * cos2_theta_h + 1.0).powi(2));
+    let d_tr = alpha2.max(0.1)
+        / (PI * ((alpha2.max(0.1) - 1.0) * cos2_theta_h + 1.0).powi(2)).max(0.00001);
     let f_schlick = f_0 + (Vec3::from_value(1.0) - f_0) * (1.0 - cos_theta_d).powi(5);
     let g_schlick_ggx = (cos_theta_v / (cos_theta_v * (1.0 - k) + k))
         * (cos_theta_l / (cos_theta_l * (1.0 - k) + k));
 
     let dfg = d_tr * f_schlick * g_schlick_ggx;
-    let denominator = 4.0 * cos_theta_l * cos_theta_v;
+    let mut denominator = 4.0 * cos_theta_l * cos_theta_v;
+    if denominator == 0.0 {
+        denominator = 0.0001;
+    }
+
+    debugger::ray_print!(
+        " r_i: {:?}, r_o: {:?} ,hv: {:?}, cos_theta_d: {}, d: {}, f_0: {:?}, f: {:?}, g: {}, den: {} ",
+        ray_in.direction,
+        ray_out.direction,
+        half_vector,
+        cos_theta_d,
+        d_tr,
+        f_0,
+        f_schlick,
+        g_schlick_ggx,
+        denominator
+    );
 
     Color::from_vec(dfg / denominator)
 }
 
 pub fn ray_color(ray_in: &Ray, scene: &Scene, depth: usize) -> Color {
-    if depth >= scene.camera.bounce_limit {
+    debugger::begin_ray!();
+    let color = if depth >= scene.camera.bounce_limit {
         BLACK
     } else if let Some(intersection) = scene.intersect(ray_in) {
         let SampledMaterial {
@@ -110,6 +132,8 @@ pub fn ray_color(ray_in: &Ray, scene: &Scene, depth: usize) -> Color {
         let diffuse_radiance_in = ray_color(&ray_out, scene, depth + 1);
         let diffuse = diffuse_brdf(&intersection, ray_in, &ray_out);
 
+        debugger::ray_print!(" Diffuse: {:?}, Specular: {:?} ", diffuse, specular);
+
         let k_d = 1.0 - metallic;
         let k_s = 1.0;
 
@@ -125,10 +149,12 @@ pub fn ray_color(ray_in: &Ray, scene: &Scene, depth: usize) -> Color {
 
         diffuse_radiance.add_element_wise(specular_radiance)
     } else {
+        debugger::ray_print!("Sky");
         scene
             .camera
             .hdri
             .in_direction(ray_in.direction)
             .map(|v| (v + 1.0).log2())
-    }
+    };
+    debugger::end_ray!(color)
 }

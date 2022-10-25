@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 enable_axis = []
+enable_debugger = []
 
 [dependencies]
 cgmath = { version = "0.18", features = ["serde", "swizzle"] }

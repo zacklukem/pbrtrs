@@ -29,6 +29,14 @@ mod scene;
 mod types;
 mod util;
 
+mod debugger;
+
+#[cfg(feature = "enable_debugger")]
+use crate::debugger::debug_info;
+
+#[cfg(feature = "enable_debugger")]
+const DEBUG_PIXEL: (usize, usize) = (0, 0);
+
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Deterministic rendering
@@ -87,6 +95,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Render tile
             let mut tile: ImageTile<R8G8B8Color> = tile;
             while let Some((pixel, x, y)) = tile.next() {
+                #[cfg(feature = "enable_debugger")]
+                debugger::set_should_debug_pixel((x, y) == DEBUG_PIXEL);
+
+                debugger::begin_sample!();
                 let mut color = Color::origin();
                 for _ in 0..scene.camera.num_samples {
                     let x = x as Scalar + scalar::rand();
@@ -96,10 +108,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let ray_dir = camera_basis * vec3(x, y, scene.camera.sensor_distance);
                     let ray = Ray::new(scene.camera.position, ray_dir);
 
-                    color += ray_color(&ray, &scene, 0).to_vec();
+                    let sample_color = ray_color(&ray, &scene, 0);
+                    if sample_color.x.is_finite()
+                        && sample_color.y.is_finite()
+                        && sample_color.z.is_finite()
+                    {
+                        color += sample_color.to_vec();
+                    }
                 }
                 color /= scene.camera.num_samples as Scalar;
                 color = color.map(|v| v.sqrt());
+                debugger::end_sample!(color);
                 *pixel = color.into();
             }
 
@@ -154,6 +173,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     pool_ender_thread.join().unwrap();
+
+    #[cfg(feature = "enable_debugger")]
+    {
+        let debug = debug_info().lock().unwrap();
+        debug.save("debug_out.txt");
+    }
 
     output_image.save("./out.png").unwrap();
 
