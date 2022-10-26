@@ -1,20 +1,18 @@
 extern crate cgmath;
-extern crate core;
 extern crate fastrand;
 extern crate image;
-extern crate serde;
-extern crate serde_derive;
+extern crate pbrtrs_core;
 extern crate show_image;
 extern crate threadpool;
-extern crate toml;
 
-use crate::image_tiler::{ImageTile, ImageTileGenerator};
-use crate::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
+use pbrtrs_core::debugger;
+use pbrtrs_core::image_tiler::{ImageTile, ImageTileGenerator};
+use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 
-use crate::raytracer::ray_color;
-use crate::scene::load_scene;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
 use image::{Rgb, RgbImage};
+use pbrtrs_core::raytracer::ray_color;
+use pbrtrs_core::scene::load_scene;
 use show_image::event::WindowEvent;
 use show_image::WindowOptions;
 use std::num::NonZeroUsize;
@@ -22,17 +20,8 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
 
-mod image_tiler;
-mod intersect;
-mod raytracer;
-mod scene;
-mod types;
-mod util;
-
-mod debugger;
-
 #[cfg(feature = "enable_debugger")]
-use crate::debugger::debug_info;
+use pbrtrs_core::debugger::debug_info;
 
 #[cfg(feature = "enable_debugger")]
 const DEBUG_PIXEL: (usize, usize) = (200, 200);

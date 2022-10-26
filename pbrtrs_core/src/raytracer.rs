@@ -1,17 +1,32 @@
+use crate::debugger;
 use crate::intersect::Intersection;
 use crate::scene::{SampledMaterial, Scene};
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::PI;
 use crate::types::{color, Vec3};
+use crate::types::{scalar, Color, Ray, Scalar};
 use crate::util::random_unit_vec;
-use crate::{debugger, scalar, Color, Ray};
-use cgmath::{Array, ElementWise, EuclideanSpace, InnerSpace};
+use cgmath::{Array, ElementWise, InnerSpace};
 
 fn reflect(vec: Vec3, reflector: Vec3) -> Vec3 {
     -vec + 2.0 * reflector * vec.dot(reflector)
 }
 
-pub fn diffuse_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -> Color {
+fn fresnel_schlick(f_0: Color, cos_theta_d: Scalar) -> Color {
+    return f_0 + (Color::from_value(1.0) - f_0) * (1.0 - cos_theta_d).powi(5);
+}
+
+fn distribution_trowbridge_reitz(alpha: Scalar, cos2_theta_h: Scalar) -> Scalar {
+    let alpha2 = alpha * alpha;
+    alpha2.max(0.1) / (PI * ((alpha2.max(0.1) - 1.0) * cos2_theta_h + 1.0).powi(2)).max(0.00001)
+}
+
+fn ggx_schlick(alpha_g: Scalar, cos_theta_v: Scalar, cos_theta_l: Scalar) -> Scalar {
+    (cos_theta_v / (cos_theta_v * (1.0 - alpha_g) + alpha_g))
+        * (cos_theta_l / (cos_theta_l * (1.0 - alpha_g) + alpha_g))
+}
+
+fn diffuse_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -> Color {
     // Material
     let SampledMaterial {
         base_color,
@@ -34,7 +49,7 @@ pub fn diffuse_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) ->
         * (1.0 + (f_d90 - 1.0) * (1.0 - cos_theta_v).powi(5))
 }
 
-pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -> Color {
+fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -> Color {
     // Material
     let SampledMaterial {
         base_color,
@@ -60,18 +75,13 @@ pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -
 
     let alpha_g = (0.5 + roughness / 2.0).powi(2);
     let alpha = roughness * roughness;
-    let alpha2 = alpha * alpha;
 
     // Microfacet specular
-    let f_0 = color::mix(color(specular, specular, specular), base_color, metallic).to_vec();
+    let f_0 = color::mix(Color::from_value(specular), base_color, metallic);
 
-    let k = alpha_g;
-
-    let d_tr = alpha2.max(0.1)
-        / (PI * ((alpha2.max(0.1) - 1.0) * cos2_theta_h + 1.0).powi(2)).max(0.00001);
-    let f_schlick = f_0 + (Vec3::from_value(1.0) - f_0) * (1.0 - cos_theta_d).powi(5);
-    let g_schlick_ggx = (cos_theta_v / (cos_theta_v * (1.0 - k) + k))
-        * (cos_theta_l / (cos_theta_l * (1.0 - k) + k));
+    let d_tr = distribution_trowbridge_reitz(alpha, cos2_theta_h);
+    let f_schlick = fresnel_schlick(f_0, cos_theta_d);
+    let g_schlick_ggx = ggx_schlick(alpha_g, cos_theta_v, cos_theta_l);
 
     let dfg = d_tr * f_schlick * g_schlick_ggx;
     let mut denominator = 4.0 * cos_theta_l * cos_theta_v;
@@ -91,7 +101,7 @@ pub fn specular_brdf(intersection: &Intersection, ray_in: &Ray, ray_out: &Ray) -
         denominator
     }
 
-    Color::from_vec(dfg / denominator)
+    dfg / denominator
 }
 
 pub fn ray_color(ray_in: &Ray, scene: &Scene, depth: usize) -> Color {

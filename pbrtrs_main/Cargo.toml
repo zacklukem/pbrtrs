@@ -1,0 +1,16 @@
+[package]
+name = "pbrtrs_main"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+enable_axis = ["pbrtrs_core/enable_axis"]
+enable_debugger = ["pbrtrs_core/enable_debugger"]
+
+[dependencies]
+pbrtrs_core = { path = "../pbrtrs_core" }
+cgmath = { version = "0.18", features = ["serde", "swizzle"] }
+image = "0.24"
+threadpool = "1.8"
+fastrand = "1.8"
+show-image = { version ="0.13.1", features = ["image"] }

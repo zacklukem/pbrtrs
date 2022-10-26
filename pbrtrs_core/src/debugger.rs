@@ -162,7 +162,7 @@ pub use inner::debug_info;
 #[cfg(feature = "enable_debugger")]
 pub use inner::set_should_debug_pixel;
 
-#[allow(unused)]
+#[macro_export]
 macro_rules! ray_print {
     ($($arg:tt)*) => {{
         #[cfg(feature = "enable_debugger")]
@@ -171,9 +171,9 @@ macro_rules! ray_print {
 }
 
 #[allow(unused)]
-pub(crate) use ray_print;
+pub use ray_print;
 
-#[allow(unused)]
+#[macro_export]
 macro_rules! ray_debug {
     ($($arg:expr),*) => {{
         #[cfg(feature = "enable_debugger")]
@@ -188,8 +188,9 @@ macro_rules! ray_debug {
 }
 
 #[allow(unused)]
-pub(crate) use ray_debug;
+pub use ray_debug;
 
+#[macro_export]
 macro_rules! begin_ray {
     () => {
         #[cfg(feature = "enable_debugger")]
@@ -197,8 +198,9 @@ macro_rules! begin_ray {
     };
 }
 
-pub(crate) use begin_ray;
+pub use begin_ray;
 
+#[macro_export]
 macro_rules! end_ray {
     ($color: expr) => {{
         #[cfg(feature = "enable_debugger")]
@@ -209,8 +211,9 @@ macro_rules! end_ray {
     }};
 }
 
-pub(crate) use end_ray;
+pub use end_ray;
 
+#[macro_export]
 macro_rules! begin_sample {
     () => {
         #[cfg(feature = "enable_debugger")]
@@ -218,8 +221,9 @@ macro_rules! begin_sample {
     };
 }
 
-pub(crate) use begin_sample;
+pub use begin_sample;
 
+#[macro_export]
 macro_rules! end_sample {
     ($color: expr) => {{
         #[cfg(feature = "enable_debugger")]
@@ -230,9 +234,9 @@ macro_rules! end_sample {
     }};
 }
 
-pub(crate) use end_sample;
+pub use end_sample;
 
-#[allow(unused)]
+#[macro_export]
 macro_rules! breakpoint {
     ($color: expr) => {{
         #[cfg(feature = "enable_debugger")]
@@ -241,4 +245,4 @@ macro_rules! breakpoint {
 }
 
 #[allow(unused)]
-pub(crate) use breakpoint;
+pub use breakpoint;

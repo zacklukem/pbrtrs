@@ -1,18 +1,6 @@
-[package]
-name = "pbrtrs"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["pbrtrs_core", "pbrtrs_main"]
+resolver = "2"
 
-[features]
-enable_axis = []
-enable_debugger = []
-
-[dependencies]
-cgmath = { version = "0.18", features = ["serde", "swizzle"] }
-image = "0.24"
-threadpool = "1.8"
-serde = "1.0"
-serde_derive = "1.0"
-toml = "0.5"
-fastrand = "1.8"
-show-image = { version ="0.13.1", features = ["image"] }
+[profile.release]
+debug = true

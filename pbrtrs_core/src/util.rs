@@ -20,3 +20,6 @@ pub fn random_in_unit_sphere() -> Vec3 {
 pub fn random_unit_vec() -> Vec3 {
     random_in_unit_sphere().normalize()
 }
+
+#[cfg(test)]
+mod tests {}
