@@ -1,10 +1,8 @@
 use crate::material::Material;
-use crate::scene::{DisneyMaterial, SampledDisneyMaterial, Scene, Shape};
+use crate::scene::{SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
 use crate::types::{Mat4, Pt2, Pt3, Ray, Scalar, Vec3};
-use cgmath::{
-    assert_abs_diff_eq, point2, vec3, EuclideanSpace, InnerSpace, Rad, Transform, Transform3,
-};
+use cgmath::{point2, vec3, EuclideanSpace, InnerSpace, Transform3};
 
 pub struct Intersection<M> {
     pub distance: Scalar,
@@ -89,12 +87,13 @@ impl Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::material::EmptyMaterial;
     use crate::types::Mat4;
     use cgmath::{point3, vec3};
 
     #[test]
     fn sphere_intersect() {
-        let material = DisneyMaterial::default();
+        let material = EmptyMaterial;
         let shape = Shape::Sphere(1.0);
         // Sphere at (0, 2, 0), camera at origin, looking in +y
         let Intersection {

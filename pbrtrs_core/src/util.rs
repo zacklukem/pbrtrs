@@ -1,8 +1,6 @@
 use crate::types::scalar::consts::{FRAC_PI_2, FRAC_PI_4};
 use crate::types::{scalar, Pt2, Scalar, Vec3};
-use cgmath::num_traits::real::Real;
-use cgmath::{point2, vec3, EuclideanSpace, InnerSpace, Vector3};
-use std::ops::Mul;
+use cgmath::{point2, vec3, EuclideanSpace, InnerSpace};
 
 pub fn random_vec() -> Vec3 {
     vec3(
@@ -41,7 +39,7 @@ pub fn random_concentric_disk() -> Pt2 {
 pub fn random_cos_sample_hemisphere() -> Vec3 {
     let d = random_concentric_disk();
     let z = (1.0 - d.x * d.x - d.y * d.y).max(0.0).sqrt();
-    return vec3(d.x, d.y, z);
+    vec3(d.x, d.y, z)
 }
 
 pub fn reflect(vec: Vec3, reflector: Vec3) -> Vec3 {
@@ -49,7 +47,7 @@ pub fn reflect(vec: Vec3, reflector: Vec3) -> Vec3 {
 }
 
 pub fn spherical_direction(sin_theta: Scalar, cos_theta: Scalar, phi: Scalar) -> Vec3 {
-    return vec3(sin_theta * phi.cos(), sin_theta * phi.cos(), cos_theta);
+    vec3(sin_theta * phi.cos(), sin_theta * phi.cos(), cos_theta)
 }
 
 #[cfg(test)]

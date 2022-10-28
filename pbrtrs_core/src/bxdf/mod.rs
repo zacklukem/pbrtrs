@@ -8,9 +8,9 @@ use crate::debugger;
 use crate::intersect::Intersection;
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::{FRAC_1_PI, PI};
-use crate::types::{scalar, Color, Mat3, Scalar, Vec3};
-use crate::util::{random_cos_sample_hemisphere, random_unit_vec, reflect, NormalBasisVector};
-use cgmath::{vec3, Array, ElementWise, InnerSpace, Matrix, SquareMatrix, Zero};
+use crate::types::{scalar, Color, Scalar, Vec3};
+use crate::util::{random_cos_sample_hemisphere, reflect, NormalBasisVector};
+use cgmath::{vec3, Array, ElementWise, InnerSpace, Zero};
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

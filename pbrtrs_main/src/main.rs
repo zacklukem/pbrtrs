@@ -6,13 +6,15 @@ extern crate pbrtrs_core;
 extern crate show_image;
 extern crate threadpool;
 
+mod image_tiler;
+
 use pbrtrs_core::debugger;
-use pbrtrs_core::image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 
 use bumpalo::Bump;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
 use image::{Rgb, RgbImage};
+use image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::raytracer::ray_color;
 use pbrtrs_core::scene::load_scene;
 use show_image::event::WindowEvent;
@@ -87,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fastrand::seed(seed);
             // Render tile
             let mut tile: ImageTile<R8G8B8Color> = tile;
-            while let Some((pixel, x, y)) = tile.next() {
+            while let Some((pixel, x, y)) = tile.next_tile() {
                 #[cfg(feature = "enable_debugger")]
                 debugger::set_should_debug_pixel((x, y) == DEBUG_PIXEL);
 

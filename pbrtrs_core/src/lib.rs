@@ -9,7 +9,6 @@ extern crate toml;
 
 pub mod bxdf;
 pub mod debugger;
-pub mod image_tiler;
 pub mod intersect;
 pub mod material;
 pub mod raytracer;

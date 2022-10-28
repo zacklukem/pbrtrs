@@ -105,9 +105,7 @@ pub struct EmptyMaterial;
 impl Material for EmptyMaterial {
     type Sampled = ();
 
-    fn sample(&self, uv: Pt2) -> Self::Sampled {
-        ()
-    }
+    fn sample(&self, _uv: Pt2) -> Self::Sampled {}
 
     fn compute_scattering<'arena>(
         si: &Intersection<Self::Sampled>,

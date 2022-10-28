@@ -3,8 +3,8 @@ use crate::debugger;
 use crate::material::{Material, TransportMode};
 use crate::scene::{DisneyMaterial, Scene};
 use crate::types::color::{BLACK, WHITE};
-use crate::types::{color, Mat3, Mat4, Pt2, Pt3, Vec3};
-use crate::types::{scalar, Color, Ray, Scalar};
+use crate::types::Vec3;
+use crate::types::{Color, Ray};
 use bumpalo::Bump;
 use cgmath::{ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Zero};
 

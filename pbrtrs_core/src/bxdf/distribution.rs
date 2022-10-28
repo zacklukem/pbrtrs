@@ -95,8 +95,8 @@ fn trowbridge_reitz_sample(
     slope_y = wi_stretched.sin_phi() * slope_x + wi_stretched.cos_phi() * slope_y;
     slope_x = tmp;
 
-    slope_x = alpha_x * slope_x;
-    slope_y = alpha_y * slope_y;
+    slope_x *= alpha_x;
+    slope_y *= alpha_y;
 
     vec3(-slope_x, -slope_y, 1.0).normalize()
 }

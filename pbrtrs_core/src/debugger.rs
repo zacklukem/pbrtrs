@@ -45,7 +45,7 @@ pub mod inner {
             }
         }
 
-        fn write(&self, f: &mut impl IoWrite, mut indent_len: usize) -> IoResult<()> {
+        fn write(&self, f: &mut impl IoWrite, indent_len: usize) -> IoResult<()> {
             let mut indent = String::from_iter((0..indent_len).map(|_| '\t'));
             writeln!(f, "{indent}ray: {{")?;
             indent += "\t";
