@@ -13,13 +13,40 @@ pub struct Intersection<M> {
     pub uv: Pt2,
 }
 
+pub enum PossibleIntersection<M> {
+    Hit(Intersection<M>),
+    Miss,
+    Ignored,
+}
+
+impl<M> PossibleIntersection<M> {
+    pub fn is_miss(&self) -> bool {
+        matches!(self, PossibleIntersection::Miss)
+    }
+
+    pub fn is_hit(&self) -> bool {
+        matches!(self, PossibleIntersection::Hit(_))
+    }
+
+    pub fn is_ignored(&self) -> bool {
+        matches!(self, PossibleIntersection::Ignored)
+    }
+
+    pub fn unwrap(&self) -> &Intersection<M> {
+        match self {
+            PossibleIntersection::Hit(i) => i,
+            _ => panic!("unwrap called on a miss or ignored intersection"),
+        }
+    }
+}
+
 impl Shape {
     pub fn intersect<'mat, M: Material, T: Transform3<Scalar = Scalar>>(
         &self,
         ray: &Ray,
         shape_transform: T,
         material: &'mat M,
-    ) -> Option<Intersection<M::Sampled>> {
+    ) -> PossibleIntersection<M::Sampled> {
         match self {
             Self::Sphere(radius) => {
                 let sphere_center: Pt3 = shape_transform.transform_point(Pt3::origin());
@@ -30,11 +57,13 @@ impl Shape {
                 let c = oc.magnitude2() - radius * radius;
                 let discriminant = h * h - a * c;
                 if discriminant < 0.0 {
-                    None
+                    PossibleIntersection::Miss
                 } else {
                     let t = (-h - discriminant.sqrt()) / a;
-                    if t < 0.001 {
-                        None
+                    if t < 0.0 {
+                        PossibleIntersection::Miss
+                    } else if t < 0.001 {
+                        PossibleIntersection::Ignored
                     } else {
                         let point = ray.at(t);
 
@@ -51,7 +80,7 @@ impl Shape {
 
                         let uv = point2(theta / PI, (phi + PI) / (2.0 * PI));
 
-                        Some(Intersection {
+                        PossibleIntersection::Hit(Intersection {
                             distance: t,
                             point,
                             normal,
@@ -67,17 +96,23 @@ impl Shape {
 }
 
 impl Scene {
-    pub fn intersect(&self, ray: &Ray) -> Option<Intersection<SampledDisneyMaterial>> {
-        let mut nearest: Option<Intersection<SampledDisneyMaterial>> = None;
+    pub fn intersect(&self, ray: &Ray) -> PossibleIntersection<SampledDisneyMaterial> {
+        let mut nearest = PossibleIntersection::Miss;
         for object in &self.objects {
-            if let Some(intersect) = object.shape.intersect(
+            match object.shape.intersect(
                 ray,
                 Mat4::from_translation(object.position.to_vec()),
                 &object.material,
             ) {
-                if nearest.is_none() || nearest.as_ref().unwrap().distance > intersect.distance {
-                    nearest = Some(intersect);
+                PossibleIntersection::Hit(intersection) => {
+                    if nearest.is_miss() || intersection.distance < nearest.unwrap().distance {
+                        nearest = PossibleIntersection::Hit(intersection);
+                    }
                 }
+                PossibleIntersection::Ignored => {
+                    return PossibleIntersection::Ignored;
+                }
+                PossibleIntersection::Miss => {}
             }
         }
         nearest

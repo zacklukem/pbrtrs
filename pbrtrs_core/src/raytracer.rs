@@ -1,5 +1,6 @@
 use crate::bxdf::BxDFKind;
 use crate::debugger;
+use crate::intersect::PossibleIntersection;
 use crate::material::{Material, TransportMode};
 use crate::scene::{DisneyMaterial, Scene};
 use crate::types::color::{BLACK, WHITE};
@@ -20,54 +21,62 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
             num_begin += 1;
         }
         debugger::begin_ray!();
-        if let Some(intersection) = scene.intersect(&ray) {
-            let bsdf = DisneyMaterial::compute_scattering(
-                &intersection,
-                arena,
-                TransportMode::Importance,
-                true,
-            );
+        match scene.intersect(&ray) {
+            PossibleIntersection::Hit(intersection) => {
+                let bsdf = DisneyMaterial::compute_scattering(
+                    &intersection,
+                    arena,
+                    TransportMode::Importance,
+                    true,
+                );
 
-            let mut wi = Vec3::zero();
-            let mut pdf = 0.0;
-            let mut sampled_kind = BxDFKind::ALL;
-            let f = bsdf.sample_f(
-                -ray.direction,
-                &mut wi,
-                &mut pdf,
-                &mut sampled_kind,
-                BxDFKind::ALL,
-            );
+                let mut wi = Vec3::zero();
+                let mut pdf = 0.0;
+                let mut sampled_kind = BxDFKind::ALL;
+                let f = bsdf.sample_f(
+                    -ray.direction,
+                    &mut wi,
+                    &mut pdf,
+                    &mut sampled_kind,
+                    BxDFKind::ALL,
+                );
 
-            if f.distance2(Color::origin()) == 0.0 || pdf == 0.0 {
-                debugger::ray_print!("PDF 0 Miss ");
-                debugger::ray_debug! {
-                    f,
-                    pdf
+                if f.distance2(Color::origin()) == 0.0 || pdf == 0.0 {
+                    debugger::ray_print!("PDF 0 Miss ");
+                    debugger::ray_debug! {
+                        f,
+                        pdf
+                    }
+                    break;
                 }
+
+                beta.mul_assign_element_wise(f * wi.dot(intersection.normal).abs() / pdf);
+
+                debugger::ray_debug! {
+                    wi,
+                    f,
+                    pdf,
+                    sampled_kind,
+                    -ray.direction,
+                    beta
+                }
+
+                ray = Ray::new(intersection.point, wi);
+            }
+            PossibleIntersection::Ignored => {
+                debugger::ray_print!("Ignored");
                 break;
             }
-
-            beta.mul_assign_element_wise(f * wi.dot(intersection.normal).abs() / pdf);
-
-            debugger::ray_debug! {
-                wi,
-                f,
-                pdf,
-                sampled_kind,
-                -ray.direction,
-                beta
+            PossibleIntersection::Miss => {
+                debugger::ray_print!("Sky");
+                let light = scene
+                    .camera
+                    .hdri
+                    .in_direction(ray.direction)
+                    .map(|v| (v + 1.0).log2());
+                radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                break;
             }
-
-            ray = Ray::new(intersection.point, wi);
-        } else {
-            let light = scene
-                .camera
-                .hdri
-                .in_direction(ray.direction)
-                .map(|v| (v + 1.0).log2());
-            radiance.add_assign_element_wise(light.mul_element_wise(beta));
-            break;
         }
     }
 
