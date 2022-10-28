@@ -1,3 +1,4 @@
+extern crate bumpalo;
 extern crate cgmath;
 extern crate fastrand;
 extern crate image;
@@ -9,6 +10,7 @@ use pbrtrs_core::debugger;
 use pbrtrs_core::image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 
+use bumpalo::Bump;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
 use image::{Rgb, RgbImage};
 use pbrtrs_core::raytracer::ray_color;
@@ -49,6 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let aspect_ratio = image_width as Scalar / image_height as Scalar;
     let mut image_tile_generator = ImageTileGenerator::new(image_width, image_height);
+
+    let total_num_tiles = image_tile_generator.get_num_tiles();
 
     let pool = threadpool::Builder::new()
         .thread_name("render_thread".to_owned())
@@ -97,7 +101,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let ray_dir = camera_basis * vec3(x, y, scene.camera.sensor_distance);
                     let ray = Ray::new(scene.camera.position, ray_dir);
 
-                    let sample_color = ray_color(&ray, &scene, 0);
+                    let arena = Bump::new();
+
+                    let sample_color = ray_color(&ray, &scene, &arena);
                     if sample_color.x.is_finite()
                         && sample_color.y.is_finite()
                         && sample_color.z.is_finite()
@@ -137,7 +143,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut time = Instant::now();
 
+    let mut num_tiles: usize = 0;
+
     while let Some(tile) = image_writer_rx.recv().unwrap() {
+        num_tiles += 1;
         let (tile_x, tile_y) = tile.location();
         let (width, height) = tile.dimensions();
         for x in 0..width {
@@ -150,6 +159,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         if time.elapsed() > Duration::from_millis(250) {
+            let elapsed_time = rt_start.elapsed();
+            let time_per_tile = elapsed_time / num_tiles as u32;
+            let remaining_tiles = total_num_tiles - num_tiles;
+            let remaining_time = time_per_tile * remaining_tiles as u32;
+
+            println!(
+                "{num_tiles}/{total_num_tiles}; Elapsed: {:?}, Remaining Time: {:?}",
+                elapsed_time, remaining_time
+            );
+
             image_viewer
                 .set_image("image", output_image.clone())
                 .unwrap();

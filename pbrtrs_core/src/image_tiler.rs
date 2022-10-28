@@ -24,6 +24,10 @@ impl ImageTileGenerator {
         ImageTileGenerator { tiles }
     }
 
+    pub fn get_num_tiles(&self) -> usize {
+        self.tiles.len()
+    }
+
     pub fn get_tile<T: Copy + Default>(&mut self) -> Option<ImageTile<T>> {
         let (tile_x, tile_y, tile_width, tile_height) = self.tiles.pop()?;
         Some(ImageTile {

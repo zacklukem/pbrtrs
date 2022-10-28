@@ -55,7 +55,7 @@ pub mod color {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Ray {
     pub origin: Pt3,
     pub direction: Vec3,

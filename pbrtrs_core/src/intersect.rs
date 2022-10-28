@@ -1,24 +1,27 @@
-use crate::scene::{Material, SampledMaterial, Scene, Shape};
+use crate::material::Material;
+use crate::scene::{DisneyMaterial, SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
 use crate::types::{Mat4, Pt2, Pt3, Ray, Scalar, Vec3};
-use cgmath::{point2, vec3, EuclideanSpace, InnerSpace, Transform3};
+use cgmath::{
+    assert_abs_diff_eq, point2, vec3, EuclideanSpace, InnerSpace, Rad, Transform, Transform3,
+};
 
-pub struct Intersection<'mat> {
+pub struct Intersection<M> {
     pub distance: Scalar,
     pub normal: Vec3,
+    pub tangent: Vec3,
     pub point: Pt3,
-    pub material: &'mat Material,
-    pub sampled_material: SampledMaterial,
+    pub sampled_material: M,
     pub uv: Pt2,
 }
 
 impl Shape {
-    pub fn intersect<'mat, T: Transform3<Scalar = Scalar>>(
+    pub fn intersect<'mat, M: Material, T: Transform3<Scalar = Scalar>>(
         &self,
         ray: &Ray,
         shape_transform: T,
-        material: &'mat Material,
-    ) -> Option<Intersection<'mat>> {
+        material: &'mat M,
+    ) -> Option<Intersection<M::Sampled>> {
         match self {
             Self::Sphere(radius) => {
                 let sphere_center: Pt3 = shape_transform.transform_point(Pt3::origin());
@@ -36,18 +39,25 @@ impl Shape {
                         None
                     } else {
                         let point = ray.at(t);
+
                         let normal = (point - sphere_center).normalize();
 
-                        let uv = point2(
-                            normal.angle(vec3(0.0, 1.0, 0.0)).0 / PI,
-                            (normal.x.atan2(normal.z) + PI) / (2.0 * PI),
-                        );
+                        let theta = normal.angle(vec3(0.0, 1.0, 0.0)).0;
+                        let phi = normal.x.atan2(normal.z);
+
+                        let tangent = if normal.z.abs() <= 1e-6 && normal.x.abs() <= 1e-6 {
+                            vec3(1.0, 0.0, 0.0)
+                        } else {
+                            vec3(normal.z, 0.0, -normal.x).normalize()
+                        };
+
+                        let uv = point2(theta / PI, (phi + PI) / (2.0 * PI));
 
                         Some(Intersection {
                             distance: t,
                             point,
                             normal,
-                            material,
+                            tangent,
                             sampled_material: material.sample(uv),
                             uv,
                         })
@@ -59,8 +69,8 @@ impl Shape {
 }
 
 impl Scene {
-    pub fn intersect(&self, ray: &Ray) -> Option<Intersection> {
-        let mut nearest: Option<Intersection> = None;
+    pub fn intersect(&self, ray: &Ray) -> Option<Intersection<SampledDisneyMaterial>> {
+        let mut nearest: Option<Intersection<SampledDisneyMaterial>> = None;
         for object in &self.objects {
             if let Some(intersect) = object.shape.intersect(
                 ray,
@@ -84,11 +94,12 @@ mod tests {
 
     #[test]
     fn sphere_intersect() {
-        let material = Material::default();
+        let material = DisneyMaterial::default();
         let shape = Shape::Sphere(1.0);
         // Sphere at (0, 2, 0), camera at origin, looking in +y
         let Intersection {
             normal,
+            tangent,
             point,
             distance,
             ..
@@ -101,6 +112,7 @@ mod tests {
             .unwrap();
         assert_eq!(point, point3(0.0, 1.0, 0.0));
         assert_eq!(normal, vec3(0.0, -1.0, 0.0));
+        assert!(normal.is_perpendicular(tangent));
         assert_eq!(distance, 1.0);
 
         let shape = Shape::Sphere(2.0);
@@ -108,6 +120,7 @@ mod tests {
         let Intersection {
             normal,
             point,
+            tangent,
             distance,
             ..
         } = shape
@@ -119,6 +132,7 @@ mod tests {
             .unwrap();
         assert_eq!(point, point3(0.0, 2.0, 0.0));
         assert_eq!(normal, vec3(0.0, -1.0, 0.0));
+        assert!(normal.is_perpendicular(tangent));
         assert_eq!(distance, 2.0);
 
         let shape = Shape::Sphere(100.0);

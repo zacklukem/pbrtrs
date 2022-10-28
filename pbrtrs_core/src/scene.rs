@@ -140,7 +140,7 @@ impl<'de, P: PixelConverter<Color, Pixel = Rgb<u8>>> DeserializeTrait<'de> for T
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Material {
+pub struct DisneyMaterial {
     pub base_color: Texture<Color, Rgb8ColorPixelConverter>,
     pub subsurface: Texture<Scalar, Luma8ColorPixelConverter>,
     pub metallic: Texture<Scalar, Luma8ColorPixelConverter>,
@@ -155,7 +155,7 @@ pub struct Material {
 }
 
 #[derive(Debug)]
-pub struct SampledMaterial {
+pub struct SampledDisneyMaterial {
     pub base_color: Color,
     pub subsurface: Scalar,
     pub metallic: Scalar,
@@ -169,25 +169,7 @@ pub struct SampledMaterial {
     pub clearcoat_gloss: Scalar,
 }
 
-impl Material {
-    pub fn sample(&self, uv: Pt2) -> SampledMaterial {
-        SampledMaterial {
-            base_color: self.base_color.get(uv),
-            subsurface: self.subsurface.get(uv),
-            metallic: self.metallic.get(uv),
-            specular: self.specular.get(uv),
-            specular_tint: self.specular_tint.get(uv),
-            roughness: self.roughness.get(uv),
-            anisotropic: self.anisotropic.get(uv),
-            sheen: self.sheen.get(uv),
-            sheen_tint: self.sheen_tint.get(uv),
-            clearcoat: self.clearcoat.get(uv),
-            clearcoat_gloss: self.clearcoat_gloss.get(uv),
-        }
-    }
-}
-
-impl Default for Material {
+impl Default for DisneyMaterial {
     fn default() -> Self {
         Self {
             base_color: Texture::Value(Color::origin()),
@@ -211,7 +193,7 @@ pub struct Object {
     pub position: Pt3,
     pub rotation: Option<Euler>,
     pub scale: Option<Euler>,
-    pub material: Material,
+    pub material: DisneyMaterial,
 }
 
 #[derive(Debug)]

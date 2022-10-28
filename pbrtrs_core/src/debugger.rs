@@ -1,7 +1,6 @@
 #[cfg(feature = "enable_debugger")]
 pub mod inner {
-    use crate::types::color;
-    use crate::Color;
+    use crate::types::{color, Color};
     use std::cell::RefCell;
     use std::fmt::{Arguments, Write};
     use std::io::{Result as IoResult, Write as IoWrite};

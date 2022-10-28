@@ -1365,12 +1365,14 @@ dependencies = [
 name = "pbrtrs_core"
 version = "0.1.0"
 dependencies = [
+ "bumpalo",
  "cgmath",
  "criterion",
  "fastrand",
  "image",
  "serde",
  "serde_derive",
+ "smallvec",
  "toml",
 ]
 
@@ -1378,6 +1380,7 @@ dependencies = [
 name = "pbrtrs_main"
 version = "0.1.0"
 dependencies = [
+ "bumpalo",
  "cgmath",
  "fastrand",
  "image",
