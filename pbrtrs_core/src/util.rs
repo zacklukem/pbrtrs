@@ -1,6 +1,16 @@
 use crate::types::scalar::consts::{FRAC_PI_2, FRAC_PI_4};
-use crate::types::{scalar, Pt2, Scalar, Vec3};
+use crate::types::{scalar, Pt2, Pt3, Scalar, Vec3};
 use cgmath::{point2, vec3, EuclideanSpace, InnerSpace};
+
+pub fn max_value3(v: Pt3) -> Scalar {
+    if v[0] > v[1] && v[0] > v[2] {
+        v[0]
+    } else if v[1] > v[2] {
+        v[1]
+    } else {
+        v[2]
+    }
+}
 
 pub fn random_vec() -> Vec3 {
     vec3(

@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 
 use std::path::Path;
 
+use crate::distribution::Hdri;
 use crate::types::R8G8B8Color;
 use serde::de::{Error as SerdeError, SeqAccess, Visitor};
 use serde::{Deserialize as DeserializeTrait, Deserializer};
@@ -207,30 +208,11 @@ impl<'de> DeserializeTrait<'de> for Shape {
     }
 }
 
-pub struct Hdri(pub Rgb32FImage);
-
-impl Hdri {
-    pub fn in_direction(&self, direction: Vec3) -> Color {
-        let theta = direction.angle(vec3(0.0, 1.0, 0.0)).0 / PI;
-        let phi = (direction.x.atan2(direction.z) + PI) / (2.0 * PI);
-        let x = ((self.0.width() as Scalar * phi) as u32).min(self.0.width() - 1);
-        let y = ((self.0.height() as Scalar * theta) as u32).min(self.0.height() - 1);
-        let [r, g, b] = self.0.get_pixel(x, y).0;
-        color(r, g, b)
-    }
-}
-
-impl Debug for Hdri {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[hdri]")
-    }
-}
-
 impl<'de> DeserializeTrait<'de> for Hdri {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let path = String::deserialize(deserializer)?;
         let image = image::io::Reader::open(path).unwrap().decode().unwrap();
-        Ok(Hdri(image.into_rgb32f()))
+        Ok(Hdri::new(image.into_rgb32f()))
     }
 }
 
@@ -266,7 +248,7 @@ impl<'de> DeserializeTrait<'de> for Camera {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let camera_raw: CameraRaw = CameraRaw::deserialize(deserializer)?;
         let hdri_bias = camera_raw.hdri_bias.map(|[x, y]| {
-            let (width, height) = camera_raw.hdri.0.dimensions();
+            let (width, height) = camera_raw.hdri.image.dimensions();
             // Theta = 0 := up, Theta = PI := down
             let (phi, theta) = (
                 (x as Scalar / width as Scalar) * 2.0 * PI - PI,

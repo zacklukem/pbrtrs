@@ -43,15 +43,32 @@ impl BxDFKind {
     pub const GLOSSY: BxDFKind = BxDFKind(1 << 3);
     pub const SPECULAR: BxDFKind = BxDFKind(1 << 4);
     pub const ALL: BxDFKind = Self::DIFFUSE
-        .and(Self::GLOSSY)
-        .and(Self::SPECULAR)
-        .and(Self::REFLECTION)
-        .and(Self::TRANSMISSION);
+        .set(Self::GLOSSY)
+        .set(Self::SPECULAR)
+        .set(Self::REFLECTION)
+        .set(Self::TRANSMISSION);
 
-    pub const fn and(self, other: BxDFKind) -> BxDFKind {
+    #[inline(always)]
+    pub const fn set(self, other: BxDFKind) -> BxDFKind {
         BxDFKind(self.0 | other.0)
     }
 
+    #[inline(always)]
+    pub const fn unset(self, other: BxDFKind) -> BxDFKind {
+        BxDFKind(self.0 & !other.0)
+    }
+
+    #[inline(always)]
+    pub const fn mask(self, other: BxDFKind) -> BxDFKind {
+        BxDFKind(self.0 & other.0)
+    }
+
+    #[inline(always)]
+    pub const fn not(self) -> BxDFKind {
+        BxDFKind(!self.0)
+    }
+
+    #[inline(always)]
     pub const fn has(self, other: BxDFKind) -> bool {
         self.0 & other.0 > 0
     }
@@ -133,7 +150,7 @@ pub struct Lambertian(pub Color);
 
 impl BxDF for Lambertian {
     fn kind(&self) -> BxDFKind {
-        BxDFKind::DIFFUSE.and(BxDFKind::REFLECTION)
+        BxDFKind::DIFFUSE.set(BxDFKind::REFLECTION)
     }
 
     fn f(&self, _wo: Vec3, _wi: Vec3) -> Color {
@@ -179,8 +196,8 @@ pub struct MicrofacetReflection<D, F> {
 impl<D: Distribution, F: Fresnel> BxDF for MicrofacetReflection<D, F> {
     fn kind(&self) -> BxDFKind {
         BxDFKind::REFLECTION
-            .and(BxDFKind::GLOSSY)
-            .and(BxDFKind::SPECULAR)
+            .set(BxDFKind::GLOSSY)
+            .set(BxDFKind::SPECULAR)
     }
 
     fn f(&self, wo: Vec3, wi: Vec3) -> Color {
@@ -404,10 +421,10 @@ mod tests {
                 let si = shape
                     .intersect(
                         &Ray::new(Pt3::from_vec($direction * 10.0), -$direction),
-                        Mat4::identity(),
+                        vec3(0.0, 0.0, 0.0),
                         &EmptyMaterial,
                     )
-                    .unwrap();
+                    .unwrap_into();
 
                 let bsdf = BSDF::new(&si);
                 assert_abs_diff_eq!(

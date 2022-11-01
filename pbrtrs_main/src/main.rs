@@ -61,8 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .num_threads(
             thread::available_parallelism()
                 .map(NonZeroUsize::get)
-                .unwrap_or(4)
-                * 2,
+                .unwrap_or(4),
         )
         .build();
 
@@ -93,6 +92,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 #[cfg(feature = "enable_debugger")]
                 debugger::set_should_debug_pixel((x, y) == DEBUG_PIXEL);
 
+                let arena = Bump::new();
+
                 debugger::begin_sample!();
                 let mut color = Color::origin();
                 for _ in 0..scene.camera.num_samples {
@@ -102,8 +103,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let y = ((y / image_height as Scalar) * 2.0 - 1.0) / aspect_ratio;
                     let ray_dir = camera_basis * vec3(x, y, scene.camera.sensor_distance);
                     let ray = Ray::new(scene.camera.position, ray_dir);
-
-                    let arena = Bump::new();
 
                     let sample_color = ray_color(&ray, &scene, &arena);
                     if sample_color.x.is_finite()
