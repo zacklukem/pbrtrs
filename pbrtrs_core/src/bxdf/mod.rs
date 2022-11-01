@@ -70,7 +70,12 @@ impl BxDFKind {
 
     #[inline(always)]
     pub const fn has(self, other: BxDFKind) -> bool {
-        self.0 & other.0 > 0
+        self.0 & other.0 != 0
+    }
+
+    #[inline(always)]
+    pub const fn matches(self, other: BxDFKind) -> bool {
+        (self.0 & other.0) == self.0
     }
 }
 
@@ -185,6 +190,35 @@ impl Fresnel for FresnelSchlick {
     }
 }
 
+#[derive(Debug)]
+pub struct MirrorSpecular<F> {
+    pub color: Color,
+    pub fresnel: F,
+}
+
+impl<F: Fresnel> BxDF for MirrorSpecular<F> {
+    fn kind(&self) -> BxDFKind {
+        BxDFKind::REFLECTION.set(BxDFKind::SPECULAR)
+    }
+
+    fn f(&self, _wo: Vec3, _wi: Vec3) -> Color {
+        BLACK
+    }
+
+    fn sample_f(
+        &self,
+        wo: Vec3,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+        sampled_kind: &mut BxDFKind,
+    ) -> Color {
+        *sampled_kind = self.kind();
+        *wi = vec3(-wo.x, -wo.y, wo.z);
+        *pdf = 1.0;
+        self.fresnel.f(wi.cos_theta()).mul_element_wise(self.color) / wi.abs_cos_theta()
+    }
+}
+
 /// Microfacet reflection
 #[derive(Debug)]
 pub struct MicrofacetReflection<D, F> {
@@ -195,9 +229,7 @@ pub struct MicrofacetReflection<D, F> {
 
 impl<D: Distribution, F: Fresnel> BxDF for MicrofacetReflection<D, F> {
     fn kind(&self) -> BxDFKind {
-        BxDFKind::REFLECTION
-            .set(BxDFKind::GLOSSY)
-            .set(BxDFKind::SPECULAR)
+        BxDFKind::REFLECTION.set(BxDFKind::GLOSSY)
     }
 
     fn f(&self, wo: Vec3, wi: Vec3) -> Color {
@@ -219,8 +251,9 @@ impl<D: Distribution, F: Fresnel> BxDF for MicrofacetReflection<D, F> {
         wo: Vec3,
         wi: &mut Vec3,
         pdf: &mut Scalar,
-        _sampled_kind: &mut BxDFKind,
+        sampled_kind: &mut BxDFKind,
     ) -> Color {
+        *sampled_kind = self.kind();
         let wh = self.distribution.sample_wh(wo);
         *wi = reflect(wo, wh);
         if !wo.same_hemisphere(*wi) {
@@ -280,7 +313,7 @@ impl<'arena> BSDF<'arena> {
     pub fn num_components(&self, kind: BxDFKind) -> usize {
         self.bxdfs
             .iter()
-            .filter(|bxdf| bxdf.kind().has(kind))
+            .filter(|bxdf| bxdf.kind().matches(kind))
             .count()
     }
 
@@ -297,7 +330,7 @@ impl<'arena> BSDF<'arena> {
         self.bxdfs
             .iter()
             .filter(|bxdf| {
-                bxdf.kind().has(kind)
+                bxdf.kind().matches(kind)
                     && ((reflect && bxdf.kind().has(BxDFKind::REFLECTION))
                         || (!reflect && bxdf.kind().has(BxDFKind::TRANSMISSION)))
             })
@@ -334,7 +367,7 @@ impl<'arena> BSDF<'arena> {
             .bxdfs
             .iter()
             .enumerate()
-            .filter(|(_, bxdf)| bxdf.kind().has(kind))
+            .filter(|(_, bxdf)| bxdf.kind().matches(kind))
             .nth(comp)
             .unwrap();
 
@@ -354,7 +387,7 @@ impl<'arena> BSDF<'arena> {
 
         if !bxdf.kind().has(BxDFKind::SPECULAR) {
             for (i, bxdf) in self.bxdfs.iter().enumerate() {
-                if i != bxdf_index && bxdf.kind().has(kind) {
+                if i != bxdf_index && bxdf.kind().matches(kind) {
                     *pdf += bxdf.pdf(wo, wi);
                 }
             }
@@ -372,7 +405,7 @@ impl<'arena> BSDF<'arena> {
     pub fn rho(&self, wo: Vec3, samples: &[[Scalar; 2]], kind: BxDFKind) -> Color {
         self.bxdfs
             .iter()
-            .filter(|bxdf| bxdf.kind().has(kind))
+            .filter(|bxdf| bxdf.kind().matches(kind))
             .fold(BLACK, |rho, bxdf| {
                 rho.add_element_wise(bxdf.rho(wo, samples))
             })
@@ -386,7 +419,7 @@ impl<'arena> BSDF<'arena> {
     ) -> Color {
         self.bxdfs
             .iter()
-            .filter(|bxdf| bxdf.kind().has(kind))
+            .filter(|bxdf| bxdf.kind().matches(kind))
             .fold(BLACK, |rho, bxdf| {
                 rho.add_element_wise(bxdf.rho2(samples1, samples2))
             })
@@ -396,7 +429,7 @@ impl<'arena> BSDF<'arena> {
         let (count, pdf) = self
             .bxdfs
             .iter()
-            .filter(|bxdf| bxdf.kind().has(kind))
+            .filter(|bxdf| bxdf.kind().matches(kind))
             .fold((0, 0.0), |(count, pdf), bxdf| {
                 (count + 1, pdf + bxdf.pdf(wo, wi))
             });

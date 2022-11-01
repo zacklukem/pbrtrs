@@ -17,6 +17,7 @@ use image::{Rgb, RgbImage};
 use image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::raytracer::ray_color;
 use pbrtrs_core::scene::load_scene;
+use pbrtrs_core::types::scalar::consts::PI;
 use show_image::event::WindowEvent;
 use show_image::WindowOptions;
 use std::num::NonZeroUsize;
@@ -28,7 +29,7 @@ use std::time::{Duration, Instant};
 use pbrtrs_core::debugger::debug_info;
 
 #[cfg(feature = "enable_debugger")]
-const DEBUG_PIXEL: (usize, usize) = (200, 200);
+const DEBUG_PIXEL: (usize, usize) = (102, 178);
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -166,8 +167,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let remaining_time = time_per_tile * remaining_tiles as u32;
 
             println!(
-                "{num_tiles}/{total_num_tiles}; Elapsed: {:?}, Remaining Time: {:?}",
-                elapsed_time, remaining_time
+                "{num_tiles}/{total_num_tiles}; Elapsed: {:?}, Remaining Time: {:?}, Time Per Tile: {:?}",
+                elapsed_time, remaining_time, time_per_tile,
             );
 
             image_viewer
@@ -202,10 +203,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(feature = "enable_axis")]
-fn draw_axis(tile: &mut ImageTile<R8G8B8Color>, scene: &scene::Scene) {
+fn draw_axis(tile: &mut ImageTile<R8G8B8Color>, scene: &pbrtrs_core::scene::Scene) {
     use crate::image_tiler::TILE_SIZE;
-    use crate::types::color;
     use cgmath::{point3, vec2, SquareMatrix, Transform};
+    use pbrtrs_core::types::color;
 
     let root_pt = point3(0.0, 0.0, 0.0);
     let x_pt = point3(1.0, 0.0, 0.0);

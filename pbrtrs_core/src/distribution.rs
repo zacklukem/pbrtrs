@@ -129,11 +129,14 @@ pub struct Hdri {
 
 impl Hdri {
     pub fn new(image: Rgb32FImage) -> Self {
-        let distribution = Distribution2D::new(
-            image
-                .rows()
-                .map(|i| i.map(|p| p.0.iter().sum::<Scalar>()).collect::<Vec<_>>()),
-        );
+        let distribution = Distribution2D::new(image.rows().enumerate().map(|(v, row)| {
+            let sin_theta = (PI * (v as Scalar + 0.5) / image.height() as Scalar).sin();
+            row.map(|p| {
+                let luminance = 0.299 * p.0[0] + 0.587 * p.0[1] + 0.114 * p.0[2];
+                luminance * sin_theta
+            })
+            .collect::<Vec<_>>()
+        }));
 
         Self {
             image,
@@ -176,7 +179,7 @@ impl Hdri {
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
         let sin_phi = phi.sin();
-        *wi = vec3(sin_theta * cos_phi, cos_theta, sin_theta * sin_phi);
+        *wi = vec3(sin_theta * sin_phi, cos_theta, sin_theta * cos_phi);
 
         *pdf = if sin_theta == 0.0 {
             0.0
@@ -194,7 +197,8 @@ impl Hdri {
         if sin_theta == 0.0 {
             0.0
         } else {
-            self.distribution.pdf(point2(phi / PI, theta / PI)) / (2.0 * PI * PI * sin_theta)
+            self.distribution.pdf(point2(phi / (2.0 * PI), theta / PI))
+                / (2.0 * PI * PI * sin_theta)
         }
     }
 }
@@ -237,17 +241,18 @@ pub fn estimate_direct<M>(
     if light_pdf > 0.0 && li != BLACK {
         // TODO: handle medium interactions
 
-        let ray = Ray::new(intersection.point, wi);
-        if scene.intersect(&ray).is_miss() {
-            let f = bsdf.f(-ray.direction, wi, bxdf_kind);
-            let f = f * wi.dot(intersection.normal).abs();
-            scattering_pdf = bsdf.pdf(-ray.direction, wi, bxdf_kind);
+        if wi.dot(intersection.normal) > 0.0 {
+            let inter_to_light = Ray::new(intersection.point, wi);
+            if scene.intersect(&inter_to_light).is_miss() {
+                let f = bsdf.f(-ray.direction, wi, bxdf_kind);
+                let f = f * wi.dot(intersection.normal).abs();
+                scattering_pdf = bsdf.pdf(-ray.direction, wi, bxdf_kind);
 
-            if f != BLACK {
-                // TODO: Check light visibility
-                // TODO: Handle delta lights
-                let weight = power_heuristic(1.0, light_pdf, 1.0, scattering_pdf);
-                ld.add_assign_element_wise(f.mul_element_wise(li) * weight / light_pdf);
+                if f != BLACK {
+                    // TODO: Handle delta lights
+                    let weight = power_heuristic(1.0, light_pdf, 1.0, scattering_pdf);
+                    ld.add_assign_element_wise(f.mul_element_wise(li) * weight / light_pdf);
+                }
             }
         }
     }
@@ -263,7 +268,8 @@ pub fn estimate_direct<M>(
         &mut scattering_pdf,
         &mut sampled_kind,
         bxdf_kind,
-    ) * wi.dot(intersection.normal).abs();
+    );
+    let f = f * wi.dot(intersection.normal).abs();
     let sampled_specular = sampled_kind.has(BxDFKind::SPECULAR);
 
     if f != BLACK && scattering_pdf > 0.0 {
@@ -277,12 +283,14 @@ pub fn estimate_direct<M>(
             power_heuristic(1.0, scattering_pdf, 1.0, light_pdf)
         };
 
-        let ray = Ray::new(intersection.point, wi);
+        if wi.dot(intersection.normal) > 0.0 {
+            let ray = Ray::new(intersection.point, wi);
 
-        if scene.intersect(&ray).is_miss() {
-            let li = light.in_direction(wi);
-            if li != BLACK {
-                ld.add_assign_element_wise(f.mul_element_wise(li) * weight / scattering_pdf);
+            if scene.intersect(&ray).is_miss() {
+                let li = light.in_direction(wi);
+                if li != BLACK {
+                    ld.add_assign_element_wise(f.mul_element_wise(li) * weight / scattering_pdf);
+                }
             }
         }
     }

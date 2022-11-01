@@ -2,19 +2,29 @@ use crate::bxdf::BxDFKind;
 use crate::debugger;
 use crate::distribution::estimate_direct;
 use crate::intersect::PossibleIntersection;
-use crate::material::{Material, TransportMode};
-use crate::scene::{DisneyMaterial, Scene};
+use crate::material::{EmptyMaterial, Material, TransportMode};
+use crate::scene::{DisneyMaterial, Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
-use crate::types::{scalar, Vec3};
+use crate::types::{color, scalar, Scalar, Vec3};
 use crate::types::{Color, Ray};
 use crate::util::max_value3;
 use bumpalo::Bump;
-use cgmath::{ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Zero};
+use cgmath::{vec3, ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Zero};
+
+const S: Shape = Shape::Sphere(1.0);
 
 pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color {
+    // if let PossibleIntersection::Hit(it) = S.intersect(ray, vec3(0.0, 1.0, 0.0), &EmptyMaterial) {
+    //     let pdf = scene.camera.hdri.pdf_li(&it, it.normal);
+    //     let val = scene.camera.hdri.in_direction(it.normal);
+    //     let val = 0.299 * val.x + 0.587 * val.y + 0.114 * val.z;
+    //     return color(pdf * 10.0, val, 0.0);
+    // }
+
     let mut radiance = BLACK;
     let mut beta = WHITE;
     let mut ray = *ray;
+    let mut specular_bounce = false;
     #[cfg(feature = "enable_debugger")]
     let mut num_begin = 0;
     for bounce_count in 0..scene.camera.bounce_limit {
@@ -33,12 +43,6 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                 );
 
                 if bsdf.num_components(BxDFKind::ALL.unset(BxDFKind::SPECULAR)) > 0 {
-                    // Spectrum Ld = beta * UniformSampleOneLight(isect, scene, arena,
-                    //                                            sampler, false, distrib);
-                    // VLOG(2) << "Sampled direct lighting Ld = " << Ld;
-                    // if (Ld.IsBlack()) ++zeroRadiancePaths;
-                    // CHECK_GE(Ld.y(), 0.f);
-                    // L += Ld;
                     let ld = beta.mul_element_wise(estimate_direct(
                         &ray,
                         &intersection,
@@ -59,6 +63,7 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                     &mut sampled_kind,
                     BxDFKind::ALL,
                 );
+                specular_bounce = sampled_kind.has(BxDFKind::SPECULAR);
 
                 if f.distance2(Color::origin()) == 0.0 || pdf == 0.0 {
                     debugger::ray_print!("PDF 0 Miss ");
@@ -77,7 +82,8 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                     pdf,
                     sampled_kind,
                     -ray.direction,
-                    beta
+                    beta,
+                    radiance
                 }
 
                 if bounce_count > 3 && (1.0 - max_value3(beta).max(0.7)) < scalar::rand() {
@@ -93,12 +99,10 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
             }
             PossibleIntersection::Miss => {
                 debugger::ray_print!("Sky");
-                let light = scene
-                    .camera
-                    .hdri
-                    .in_direction(ray.direction)
-                    .map(|v| (v + 1.0).log2());
-                radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                if bounce_count == 0 || specular_bounce {
+                    let light = scene.camera.hdri.in_direction(ray.direction);
+                    radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                }
                 break;
             }
         }

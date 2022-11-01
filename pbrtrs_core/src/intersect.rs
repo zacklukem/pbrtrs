@@ -2,7 +2,7 @@ use crate::material::Material;
 use crate::scene::{SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
 use crate::types::{Pt2, Pt3, Ray, Scalar, Vec3};
-use cgmath::{point2, vec3, EuclideanSpace, InnerSpace};
+use cgmath::{point2, point3, vec3, EuclideanSpace, InnerSpace, Zero};
 
 pub struct Intersection<M> {
     pub distance: Scalar,
@@ -11,6 +11,19 @@ pub struct Intersection<M> {
     pub point: Pt3,
     pub sampled_material: M,
     pub uv: Pt2,
+}
+
+impl Intersection<()> {
+    pub const fn dummy() -> Self {
+        Self {
+            distance: 0.0,
+            normal: vec3(0.0, 0.0, 0.0),
+            tangent: vec3(0.0, 0.0, 0.0),
+            point: point3(0.0, 0.0, 0.0),
+            sampled_material: (),
+            uv: point2(0.0, 0.0),
+        }
+    }
 }
 
 pub enum PossibleIntersection<M> {
