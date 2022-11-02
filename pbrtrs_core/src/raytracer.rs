@@ -11,16 +11,7 @@ use crate::util::max_value3;
 use bumpalo::Bump;
 use cgmath::{vec3, ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Zero};
 
-const S: Shape = Shape::Sphere(1.0);
-
 pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color {
-    // if let PossibleIntersection::Hit(it) = S.intersect(ray, vec3(0.0, 1.0, 0.0), &EmptyMaterial) {
-    //     let pdf = scene.camera.hdri.pdf_li(&it, it.normal);
-    //     let val = scene.camera.hdri.in_direction(it.normal);
-    //     let val = 0.299 * val.x + 0.587 * val.y + 0.114 * val.z;
-    //     return color(pdf * 10.0, val, 0.0);
-    // }
-
     let mut radiance = BLACK;
     let mut beta = WHITE;
     let mut ray = *ray;

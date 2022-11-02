@@ -197,16 +197,17 @@ pub struct Object {
     pub material: DisneyMaterial,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind")]
 pub enum Shape {
-    Sphere(Scalar),
+    Sphere { radius: Scalar },
 }
 
-impl<'de> DeserializeTrait<'de> for Shape {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Scalar::deserialize(deserializer).map(Shape::Sphere)
-    }
-}
+// impl<'de> DeserializeTrait<'de> for Shape {
+//     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+//         Scalar::deserialize(deserializer).map(Shape::Sphere)
+//     }
+// }
 
 impl<'de> DeserializeTrait<'de> for Hdri {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {

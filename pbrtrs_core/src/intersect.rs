@@ -68,7 +68,7 @@ impl Shape {
         material: &'mat M,
     ) -> PossibleIntersection<M::Sampled> {
         match self {
-            Self::Sphere(radius) => {
+            Self::Sphere { radius } => {
                 let sphere_center: Pt3 = Pt3::from_vec(translate);
                 let oc = ray.origin - sphere_center;
 
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn sphere_intersect() {
         let material = EmptyMaterial;
-        let shape = Shape::Sphere(1.0);
+        let shape = Shape::Sphere { radius: 1.0 };
         // Sphere at (0, 2, 0), camera at origin, looking in +y
         let Intersection {
             normal,
@@ -168,7 +168,7 @@ mod tests {
         assert!(normal.is_perpendicular(tangent));
         assert_eq!(distance, 1.0);
 
-        let shape = Shape::Sphere(2.0);
+        let shape = Shape::Sphere { radius: 2.0 };
         // Sphere at (0, 2, 0), radius 2, camera at origin, looking in +y
         let Intersection {
             normal,
@@ -188,7 +188,7 @@ mod tests {
         assert!(normal.is_perpendicular(tangent));
         assert_eq!(distance, 2.0);
 
-        let shape = Shape::Sphere(100.0);
+        let shape = Shape::Sphere { radius: 100.0 };
         // Sphere at (0, -100, 0), radius 100, camera at 3.0, 1.5, 3.0, looking at 0.0, 0.0, 0.0
         assert!(shape
             .intersect(
@@ -201,7 +201,7 @@ mod tests {
             )
             .is_miss());
 
-        let shape = Shape::Sphere(1.0);
+        let shape = Shape::Sphere { radius: 1.0 };
         assert!(shape
             .intersect(
                 &Ray::new(point3(0.0, 1.0, 0.0), vec3(0.0, -1.0, 0.0)),
