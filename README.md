@@ -1,7 +1,8 @@
 # pbrtrs
 
 pbrtrs is a path tracer written in Rust. It is based on the book
-[Ray Tracing in One Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html) by Peter Shirley.
+[Physically Based Rendering: From Theory To Implementation](pbr-book.org)
+by Matt Pharr, Wenzel Jakob, and Greg Humphreys
 
 Example output:
 
