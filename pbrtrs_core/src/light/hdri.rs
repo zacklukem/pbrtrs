@@ -1,11 +1,10 @@
-use crate::bxdf::{BxDFKind, BSDF};
 use crate::intersect::Intersection;
-use crate::scene::Scene;
+use crate::light::{Light, LightKind};
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::PI;
 use crate::types::{color, scalar, Color, Pt2, Ray, Scalar, Vec3};
-use cgmath::{point2, vec3, ElementWise, InnerSpace, Zero};
-use image::{Pixel, Pixels, Rgb32FImage};
+use cgmath::{point2, vec3, InnerSpace};
+use image::Rgb32FImage;
 use std::fmt::{Debug, Formatter};
 
 fn binary_search_cdf(cdf: &[Scalar], value: Scalar) -> usize {
@@ -72,6 +71,7 @@ impl Distribution1D {
         (offset, (offset as Scalar + du) / self.cdf.len() as Scalar)
     }
 
+    #[allow(unused)]
     pub fn sample_discrete(&self, u: Scalar) -> (usize, Scalar) {
         let offset = binary_search_cdf(&self.cdf, u);
         let u_prime = (u - self.cdf[offset]) / (self.cdf[offset + 1] - self.cdf[offset]);
@@ -150,15 +150,22 @@ impl Hdri {
         let [r, g, b] = self.image.get_pixel(x, y).0;
         color(r, g, b)
     }
+}
 
-    pub fn in_direction(&self, direction: Vec3) -> Color {
+impl Light for Hdri {
+    fn kind(&self) -> LightKind {
+        LightKind::DELTA_DIRECTION.set(LightKind::INFINITE)
+    }
+
+    fn le(&self, ray: &Ray) -> Color {
+        let direction = ray.direction;
         let u = (direction.x.atan2(direction.z) + PI) / (2.0 * PI);
         let v = direction.angle(vec3(0.0, 1.0, 0.0)).0 / PI;
 
         self.lookup(point2(u, v))
     }
 
-    pub fn sample_li<M>(
+    fn sample_li<M>(
         &self,
         _intersection: &Intersection<M>,
         wi: &mut Vec3,
@@ -179,7 +186,7 @@ impl Hdri {
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
         let sin_phi = phi.sin();
-        *wi = vec3(sin_theta * sin_phi, cos_theta, sin_theta * cos_phi);
+        *wi = vec3(sin_theta * sin_phi, cos_theta, sin_theta * cos_phi).normalize();
 
         *pdf = if sin_theta == 0.0 {
             0.0
@@ -190,7 +197,7 @@ impl Hdri {
         self.lookup(uv)
     }
 
-    pub fn pdf_li<M>(&self, _intersection: &Intersection<M>, wi: Vec3) -> Scalar {
+    fn pdf_li<M>(&self, _intersection: &Intersection<M>, wi: Vec3) -> Scalar {
         let theta = wi.angle(vec3(0.0, 1.0, 0.0)).0;
         let phi = wi.x.atan2(wi.z) + PI;
         let sin_theta = theta.sin();
@@ -207,93 +214,4 @@ impl Debug for Hdri {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[hdri]")
     }
-}
-
-pub fn power_heuristic(nf: Scalar, f_pdf: Scalar, ng: Scalar, g_pdf: Scalar) -> Scalar {
-    let f = nf * f_pdf;
-    let g = ng * g_pdf;
-    (f * f) / (f * f + g * g)
-}
-
-pub fn estimate_direct<M>(
-    ray: &Ray,
-    intersection: &Intersection<M>,
-    bsdf: &BSDF,
-    scene: &Scene,
-    specular: bool,
-) -> Color {
-    let light = &scene.camera.hdri;
-
-    let mut ld = BLACK;
-
-    let mut scattering_pdf = 0.0;
-
-    let mut wi = Vec3::zero();
-    let mut light_pdf = 0.0;
-    let li = light.sample_li(intersection, &mut wi, &mut light_pdf);
-
-    let bxdf_kind = if specular {
-        BxDFKind::ALL
-    } else {
-        BxDFKind::ALL.unset(BxDFKind::SPECULAR)
-    };
-
-    if light_pdf > 0.0 && li != BLACK {
-        // TODO: handle medium interactions
-
-        if wi.dot(intersection.normal) > 0.0 {
-            let inter_to_light = Ray::new(intersection.point, wi);
-            if scene.intersect(&inter_to_light).is_miss() {
-                let f = bsdf.f(-ray.direction, wi, bxdf_kind);
-                let f = f * wi.dot(intersection.normal).abs();
-                scattering_pdf = bsdf.pdf(-ray.direction, wi, bxdf_kind);
-
-                if f != BLACK {
-                    // TODO: Handle delta lights
-                    let weight = power_heuristic(1.0, light_pdf, 1.0, scattering_pdf);
-                    ld.add_assign_element_wise(f.mul_element_wise(li) * weight / light_pdf);
-                }
-            }
-        }
-    }
-
-    // TODO: handle delta lights
-    // TODO: handle medium interactions
-
-    let mut sampled_kind = BxDFKind::ALL;
-
-    let f = bsdf.sample_f(
-        -ray.direction,
-        &mut wi,
-        &mut scattering_pdf,
-        &mut sampled_kind,
-        bxdf_kind,
-    );
-    let f = f * wi.dot(intersection.normal).abs();
-    let sampled_specular = sampled_kind.has(BxDFKind::SPECULAR);
-
-    if f != BLACK && scattering_pdf > 0.0 {
-        let weight = if sampled_specular {
-            1.0
-        } else {
-            let light_pdf = light.pdf_li(intersection, wi);
-            if light_pdf == 0.0 {
-                return ld;
-            }
-            power_heuristic(1.0, scattering_pdf, 1.0, light_pdf)
-        };
-
-        if wi.dot(intersection.normal) > 0.0 {
-            let ray = Ray::new(intersection.point, wi);
-
-            if scene.intersect(&ray).is_miss() {
-                let li = light.in_direction(wi);
-                if li != BLACK {
-                    ld.add_assign_element_wise(f.mul_element_wise(li) * weight / scattering_pdf);
-                }
-            }
-        }
-    }
-
-    ld
 }

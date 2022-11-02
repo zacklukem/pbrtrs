@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 use std::path::Path;
 
-use crate::distribution::Hdri;
+use crate::light::hdri::Hdri;
 use crate::types::R8G8B8Color;
 use serde::de::{Error as SerdeError, SeqAccess, Visitor};
 use serde::{Deserialize as DeserializeTrait, Deserializer};

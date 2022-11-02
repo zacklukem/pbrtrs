@@ -2,6 +2,7 @@ use crate::bxdf::distribution::TrowbridgeReitzDistribution;
 use crate::bxdf::{BxDF, FresnelSchlick, Lambertian, MicrofacetReflection, MirrorSpecular, BSDF};
 use crate::intersect::Intersection;
 use crate::scene::{DisneyMaterial, SampledDisneyMaterial};
+use crate::types::color::WHITE;
 use crate::types::{color, Color, Pt2};
 use bumpalo::Bump;
 use cgmath::{point2, Array};
@@ -76,21 +77,13 @@ impl Material for DisneyMaterial {
             metallic,
         ));
 
-        if roughness == 1.0 {
-            let specular = arena.alloc(MirrorSpecular {
-                color: base_color,
-                fresnel,
-            });
-            bsdf.add(specular);
-        } else {
-            let distribution = TrowbridgeReitzDistribution::new(alpha);
-            let specular = arena.alloc(MicrofacetReflection {
-                color: color::mix(Color::from_value(1.0), base_color, specular_tint),
-                distribution,
-                fresnel,
-            });
-            bsdf.add(specular);
-        }
+        let distribution = TrowbridgeReitzDistribution::new(alpha);
+        let specular = arena.alloc(MicrofacetReflection {
+            color: color::mix(WHITE, base_color, specular_tint),
+            distribution,
+            fresnel,
+        });
+        bsdf.add(specular);
 
         if allow_multiple_lobes && clearcoat != 0.0 {
             // TODO: use isotropic Trowbridge-Reitz with gamma=1

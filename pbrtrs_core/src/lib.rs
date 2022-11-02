@@ -9,8 +9,8 @@ extern crate toml;
 
 pub mod bxdf;
 pub mod debugger;
-pub mod distribution;
 pub mod intersect;
+mod light;
 pub mod material;
 pub mod raytracer;
 pub mod scene;

@@ -9,7 +9,9 @@ use crate::intersect::Intersection;
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::{FRAC_1_PI, PI};
 use crate::types::{scalar, Color, Scalar, Vec3};
-use crate::util::{random_cos_sample_hemisphere, reflect, NormalBasisVector};
+use crate::util::{
+    bitfield_methods, random_cos_sample_hemisphere, random_unit_vec, reflect, NormalBasisVector,
+};
 use cgmath::{vec3, Array, ElementWise, InnerSpace, Zero};
 use smallvec::SmallVec;
 
@@ -47,37 +49,9 @@ impl BxDFKind {
         .set(Self::SPECULAR)
         .set(Self::REFLECTION)
         .set(Self::TRANSMISSION);
-
-    #[inline(always)]
-    pub const fn set(self, other: BxDFKind) -> BxDFKind {
-        BxDFKind(self.0 | other.0)
-    }
-
-    #[inline(always)]
-    pub const fn unset(self, other: BxDFKind) -> BxDFKind {
-        BxDFKind(self.0 & !other.0)
-    }
-
-    #[inline(always)]
-    pub const fn mask(self, other: BxDFKind) -> BxDFKind {
-        BxDFKind(self.0 & other.0)
-    }
-
-    #[inline(always)]
-    pub const fn not(self) -> BxDFKind {
-        BxDFKind(!self.0)
-    }
-
-    #[inline(always)]
-    pub const fn has(self, other: BxDFKind) -> bool {
-        self.0 & other.0 != 0
-    }
-
-    #[inline(always)]
-    pub const fn matches(self, other: BxDFKind) -> bool {
-        (self.0 & other.0) == self.0
-    }
 }
+
+bitfield_methods!(BxDFKind);
 
 pub trait BxDF: Debug {
     fn kind(&self) -> BxDFKind;
@@ -217,6 +191,10 @@ impl<F: Fresnel> BxDF for MirrorSpecular<F> {
         *pdf = 1.0;
         self.fresnel.f(wi.cos_theta()).mul_element_wise(self.color) / wi.abs_cos_theta()
     }
+
+    fn pdf(&self, _wo: Vec3, _wi: Vec3) -> Scalar {
+        0.0
+    }
 }
 
 /// Microfacet reflection
@@ -236,12 +214,18 @@ impl<D: Distribution, F: Fresnel> BxDF for MicrofacetReflection<D, F> {
         let cos_theta_o = wo.cos_theta();
         let cos_theta_i = wi.cos_theta();
         let wh = wo + wi;
-        if cos_theta_i == 0.0 || cos_theta_o == 0.0 || (wh.x == 0.0 && wh.y == 0.0 && wh.z == 0.0) {
+        if cos_theta_i == 0.0 || cos_theta_o == 0.0 || (wh.x <= 0.0 && wh.y == 0.0 && wh.z == 0.0) {
             BLACK
         } else {
             let wh = wh.normalize();
             let dfg =
                 self.distribution.d(wh) * self.distribution.g(wo, wi) * self.fresnel.f(wi.dot(wo));
+            debugger::ray_debug! {
+                cos_theta_o,
+                cos_theta_i,
+                wh,
+                dfg
+            }
             dfg.mul_element_wise(self.color) / (4.0 * cos_theta_i * cos_theta_o)
         }
     }
@@ -261,6 +245,15 @@ impl<D: Distribution, F: Fresnel> BxDF for MicrofacetReflection<D, F> {
         } else {
             *pdf = self.distribution.pdf(wo, wh) / (4.0 * wo.dot(wh));
             self.f(wo, *wi)
+        }
+    }
+
+    fn pdf(&self, wo: Vec3, wi: Vec3) -> Scalar {
+        if !wo.same_hemisphere(wi) {
+            0.0
+        } else {
+            let wh = (wo + wi).normalize();
+            self.distribution.pdf(wo, wh) / (4.0 * wo.dot(wh))
         }
     }
 }
@@ -337,10 +330,6 @@ impl<'arena> BSDF<'arena> {
             .for_each(|bxdf| {
                 let f_b = bxdf.f(wo, wi);
                 f.add_assign_element_wise(f_b);
-                debugger::ray_debug! {
-                    bxdf,
-                    f_b
-                }
             });
         f
     }
@@ -380,10 +369,6 @@ impl<'arena> BSDF<'arena> {
         let mut wi = Vec3::zero();
         let mut f = bxdf.sample_f(wo, &mut wi, pdf, sampled_kind);
         *wi_world = self.normal_to_world(wi);
-        debugger::ray_debug! {
-            bxdf,
-            f
-        }
 
         if !bxdf.kind().has(BxDFKind::SPECULAR) {
             for (i, bxdf) in self.bxdfs.iter().enumerate() {

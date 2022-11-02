@@ -149,3 +149,41 @@ impl NormalBasisVector<Scalar> for Vec3 {
         self.z * other.z > 0.0
     }
 }
+
+macro_rules! bitfield_methods {
+    ($ty_name: ident) => {
+        impl $ty_name {
+            #[inline(always)]
+            pub const fn set(self, other: Self) -> Self {
+                Self(self.0 | other.0)
+            }
+
+            #[inline(always)]
+            pub const fn unset(self, other: Self) -> Self {
+                Self(self.0 & !other.0)
+            }
+
+            #[inline(always)]
+            pub const fn mask(self, other: Self) -> Self {
+                Self(self.0 & other.0)
+            }
+
+            #[inline(always)]
+            pub const fn not(self) -> Self {
+                Self(!self.0)
+            }
+
+            #[inline(always)]
+            pub const fn has(self, other: Self) -> bool {
+                self.0 & other.0 != 0
+            }
+
+            #[inline(always)]
+            pub const fn matches(self, other: Self) -> bool {
+                (self.0 & other.0) == self.0
+            }
+        }
+    };
+}
+
+pub(crate) use bitfield_methods;

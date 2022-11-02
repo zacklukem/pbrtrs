@@ -1,5 +1,6 @@
 #[cfg(feature = "enable_debugger")]
 pub mod inner {
+    use crate::types::color::BLACK;
     use crate::types::{color, Color};
     use std::cell::RefCell;
     use std::fmt::{Arguments, Write};
@@ -13,57 +14,64 @@ pub mod inner {
         static ENABLE_DEBUG_PIXEL: RefCell<bool> = RefCell::new(false);
     }
 
-    pub struct RayCastInfo {
-        parent: Option<Box<RayCastInfo>>,
-        pub children: Vec<Box<RayCastInfo>>,
+    #[derive(Default)]
+    pub struct BounceInfo {
         pub debug_info: String,
+    }
+
+    pub struct SampleInfo {
+        pub bounces: Vec<BounceInfo>,
         pub final_color: Color,
     }
 
     pub struct DebugInfo {
-        pub sample: Option<Box<RayCastInfo>>,
+        pub samples: Vec<SampleInfo>,
+        pub final_color: Color,
     }
 
     impl DebugInfo {
         const fn new() -> DebugInfo {
-            DebugInfo { sample: None }
+            DebugInfo {
+                samples: vec![],
+                final_color: BLACK,
+            }
         }
 
         pub fn save(&self, path: impl AsRef<Path>) {
             let mut f = std::fs::File::create(path).unwrap();
-            self.sample.as_ref().unwrap().write(&mut f, 0).unwrap();
+
+            writeln!(f, "Final color: {:?}", self.final_color).unwrap();
+            for (sample_number, sample) in self.samples.iter().enumerate() {
+                writeln!(
+                    f,
+                    "Begin Sample {sample_number}, Color: {:?} ======================================",
+                    sample.final_color
+                )
+                .unwrap();
+
+                for (bounce_number, bounce) in sample.bounces.iter().enumerate() {
+                    bounce.write(&mut f, bounce_number, 1).unwrap();
+                }
+            }
         }
     }
 
-    impl RayCastInfo {
-        const fn with_parent(parent: Option<Box<RayCastInfo>>) -> RayCastInfo {
-            RayCastInfo {
-                parent,
-                children: vec![],
-                debug_info: String::new(),
-                final_color: color(0.0, 0.0, 0.0),
-            }
-        }
-
-        fn write(&self, f: &mut impl IoWrite, indent_len: usize) -> IoResult<()> {
+    impl BounceInfo {
+        fn write(
+            &self,
+            f: &mut impl IoWrite,
+            bounce_number: usize,
+            indent_len: usize,
+        ) -> IoResult<()> {
             let mut indent = String::from_iter((0..indent_len).map(|_| '\t'));
-            writeln!(f, "{indent}ray: {{")?;
+            writeln!(f, "{indent}ray {}: {{", bounce_number)?;
             indent += "\t";
-            writeln!(
-                f,
-                "{indent}color: {} {} {}",
-                self.final_color.x, self.final_color.y, self.final_color.z
-            )?;
             if self.debug_info.len() < 10 && !self.debug_info.contains('\n') {
-                writeln!(f, "{indent}debug: {}", self.debug_info)?;
+                writeln!(f, "{indent}{}", self.debug_info)?;
             } else {
-                writeln!(f, "{indent}debug: ")?;
                 for line in self.debug_info.lines() {
-                    writeln!(f, "{indent}\t{line}")?;
+                    writeln!(f, "{indent}{line}")?;
                 }
-            }
-            for child in &self.children {
-                child.write(f, indent_len + 1)?;
             }
             indent.pop();
             writeln!(f, "{indent}}}")?;
@@ -77,11 +85,26 @@ pub mod inner {
     }
 
     #[inline]
+    pub fn begin_ray() {
+        if is_pixel_debug() {
+            let mut debug = DEBUG_INFO.lock().unwrap();
+            debug
+                .samples
+                .last_mut()
+                .expect("not in a sample")
+                .bounces
+                .push(Default::default());
+        }
+    }
+
+    #[inline]
     pub fn begin_sample() {
         if is_pixel_debug() {
             let mut debug = DEBUG_INFO.lock().unwrap();
-            assert!(debug.sample.is_none());
-            debug.sample = Some(Box::new(RayCastInfo::with_parent(None)))
+            debug.samples.push(SampleInfo {
+                bounces: vec![],
+                final_color: BLACK,
+            });
         }
     }
 
@@ -89,36 +112,20 @@ pub mod inner {
     pub fn end_sample(color: Color) -> Color {
         if is_pixel_debug() {
             let mut debug = DEBUG_INFO.lock().unwrap();
-            let sample = debug.sample.as_mut().expect("begin_sample was not called");
-            sample.final_color = color;
-            assert!(sample.parent.is_none());
+            debug
+                .samples
+                .last_mut()
+                .expect("not in a sample")
+                .final_color = color;
         }
         color
     }
 
     #[inline]
-    pub fn begin_ray() {
+    pub fn end_pixel(color: Color) -> Color {
         if is_pixel_debug() {
             let mut debug = DEBUG_INFO.lock().unwrap();
-            let parent = debug.sample.take();
-            assert!(parent.is_some());
-            debug.sample = Some(Box::new(RayCastInfo::with_parent(parent)))
-        }
-    }
-
-    #[inline]
-    pub fn end_ray(color: Color) -> Color {
-        if is_pixel_debug() {
-            let mut debug = DEBUG_INFO.lock().unwrap();
-            let mut child = debug.sample.take().expect("begin_ray was not called");
-            child.final_color = color;
-            debug.sample = child.parent.take();
-            debug
-                .sample
-                .as_mut()
-                .expect("call end_sample for last ray")
-                .children
-                .push(child);
+            debug.final_color = color;
         }
         color
     }
@@ -128,7 +135,13 @@ pub mod inner {
     pub fn ray_write(args: Arguments) {
         if is_pixel_debug() {
             let mut debug = DEBUG_INFO.lock().unwrap();
-            let sample = debug.sample.as_mut().expect("not in a ray");
+            let sample = debug
+                .samples
+                .last_mut()
+                .expect("not in a sample")
+                .bounces
+                .last_mut()
+                .expect("not in a ray");
             sample.debug_info.write_fmt(args).unwrap();
         }
     }
@@ -200,19 +213,6 @@ macro_rules! begin_ray {
 pub use begin_ray;
 
 #[macro_export]
-macro_rules! end_ray {
-    ($color: expr) => {{
-        #[cfg(feature = "enable_debugger")]
-        let color_out = $crate::debugger::inner::end_ray($color);
-        #[cfg(not(feature = "enable_debugger"))]
-        let color_out = $color;
-        color_out
-    }};
-}
-
-pub use end_ray;
-
-#[macro_export]
 macro_rules! begin_sample {
     () => {
         #[cfg(feature = "enable_debugger")]
@@ -234,6 +234,19 @@ macro_rules! end_sample {
 }
 
 pub use end_sample;
+
+#[macro_export]
+macro_rules! end_pixel {
+    ($color: expr) => {{
+        #[cfg(feature = "enable_debugger")]
+        let color_out = $crate::debugger::inner::end_pixel($color);
+        #[cfg(not(feature = "enable_debugger"))]
+        let color_out = $color;
+        color_out
+    }};
+}
+
+pub use end_pixel;
 
 #[macro_export]
 macro_rules! breakpoint {

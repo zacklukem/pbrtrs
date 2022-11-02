@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 use pbrtrs_core::debugger::debug_info;
 
 #[cfg(feature = "enable_debugger")]
-const DEBUG_PIXEL: (usize, usize) = (102, 178);
+const DEBUG_PIXEL: (usize, usize) = (175, 153);
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -95,9 +95,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let arena = Bump::new();
 
-                debugger::begin_sample!();
                 let mut color = Color::origin();
                 for _ in 0..scene.camera.num_samples {
+                    debugger::begin_sample!();
                     let x = x as Scalar + scalar::rand();
                     let y = y as Scalar + scalar::rand();
                     let x = (x / image_width as Scalar) * 2.0 - 1.0;
@@ -106,6 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let ray = Ray::new(scene.camera.position, ray_dir);
 
                     let sample_color = ray_color(&ray, &scene, &arena);
+                    debugger::end_sample!(sample_color);
                     if sample_color.x.is_finite()
                         && sample_color.y.is_finite()
                         && sample_color.z.is_finite()
@@ -114,8 +115,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 color /= scene.camera.num_samples as Scalar;
+                debugger::end_pixel!(color);
                 color = color.map(|v| v.sqrt());
-                debugger::end_sample!(color);
                 *pixel = color.into();
             }
 

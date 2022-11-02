@@ -1,7 +1,7 @@
 use crate::bxdf::BxDFKind;
 use crate::debugger;
-use crate::distribution::estimate_direct;
 use crate::intersect::PossibleIntersection;
+use crate::light::{estimate_direct, Light};
 use crate::material::{EmptyMaterial, Material, TransportMode};
 use crate::scene::{DisneyMaterial, Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
@@ -25,13 +25,7 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
     let mut beta = WHITE;
     let mut ray = *ray;
     let mut specular_bounce = false;
-    #[cfg(feature = "enable_debugger")]
-    let mut num_begin = 0;
     for bounce_count in 0..scene.camera.bounce_limit {
-        #[cfg(feature = "enable_debugger")]
-        {
-            num_begin += 1;
-        }
         debugger::begin_ray!();
         match scene.intersect(&ray) {
             PossibleIntersection::Hit(intersection) => {
@@ -98,19 +92,16 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                 break;
             }
             PossibleIntersection::Miss => {
-                debugger::ray_print!("Sky");
                 if bounce_count == 0 || specular_bounce {
-                    let light = scene.camera.hdri.in_direction(ray.direction);
-                    radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                    debugger::ray_print!("Sky Specular");
+                    // let light = scene.camera.hdri.le(&ray);
+                    // radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                } else {
+                    debugger::ray_print!("Sky Ignored");
                 }
                 break;
             }
         }
-    }
-
-    #[cfg(feature = "enable_debugger")]
-    for _ in 0..num_begin {
-        debugger::end_ray!(BLACK);
     }
 
     radiance

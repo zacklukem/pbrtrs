@@ -2,13 +2,13 @@
 position = [0.0, 4.0, -6.0]
 direction = [0.0, -4.0, 6.0]
 sensor_distance = 0.9
-hdri = "assets/pizzo_pernice_1k.exr"
+hdri = "assets/sun_only.exr"
 hdri_bias = [615, 105]
 
 bounce_limit = 10
-num_samples = 1000
-width = 512
-height = 400
+num_samples = 10000
+width = 1920
+height = 1080
 
 # Small shiny non-metallic sphere
 [[objects]]

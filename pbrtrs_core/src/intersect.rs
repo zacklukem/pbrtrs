@@ -200,5 +200,14 @@ mod tests {
                 &material,
             )
             .is_miss());
+
+        let shape = Shape::Sphere(1.0);
+        assert!(shape
+            .intersect(
+                &Ray::new(point3(0.0, 1.0, 0.0), vec3(0.0, -1.0, 0.0)),
+                vec3(0.0, 0.0, 0.0),
+                &material,
+            )
+            .is_ignored());
     }
 }
