@@ -5,6 +5,7 @@ use cgmath::{vec3, InnerSpace};
 use std::fmt::Debug;
 
 pub trait Distribution: Sized + Copy + Debug {
+    fn is_specular(self) -> bool;
     fn d(self, wh: Vec3) -> Scalar;
     fn lambda(self, w: Vec3) -> Scalar;
 
@@ -102,6 +103,11 @@ fn trowbridge_reitz_sample(
 }
 
 impl Distribution for TrowbridgeReitzDistribution {
+    #[inline]
+    fn is_specular(self) -> bool {
+        self.alpha.x < 0.04 && self.alpha.y < 0.04
+    }
+
     #[inline]
     fn d(self, wh: Vec3) -> Scalar {
         let tan2_theta = wh.tan2_theta();

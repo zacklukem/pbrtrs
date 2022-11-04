@@ -1,11 +1,12 @@
 use crate::bxdf::{BxDFKind, BSDF};
 use crate::debugger;
 use crate::intersect::Intersection;
-use crate::scene::Scene;
+use crate::light::hdri::Hdri;
+use crate::scene::{Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
-use crate::types::{Color, Ray, Scalar, Vec3};
+use crate::types::{scalar, Color, Pt3, Ray, Scalar, Vec3};
 use crate::util::bitfield_methods;
-use cgmath::{vec3, ElementWise, InnerSpace, Zero};
+use cgmath::{point3, vec3, ElementWise, InnerSpace, Zero};
 use std::fmt::{Debug, Formatter};
 
 pub mod hdri;
@@ -41,19 +42,19 @@ impl LightKind {
 
 bitfield_methods!(LightKind);
 
-pub trait Light {
+pub trait LightTrait {
     fn kind(&self) -> LightKind;
 
     fn le(&self, wi: &Ray) -> Color;
 
     fn sample_li<M>(
         &self,
-        _intersection: &Intersection<M>,
+        intersection: &Intersection<M>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color;
 
-    fn pdf_li<M>(&self, _intersection: &Intersection<M>, wi: Vec3) -> Scalar;
+    fn pdf_li<M>(&self, intersection: &Intersection<M>, wi: Vec3) -> Scalar;
 
     fn is_delta(&self) -> bool {
         self.kind().has(LightKind::DELTA_POSITION) || self.kind().has(LightKind::DELTA_DIRECTION)
@@ -66,12 +67,46 @@ pub fn power_heuristic(nf: Scalar, f_pdf: Scalar, ng: Scalar, g_pdf: Scalar) -> 
     (f * f) / (f * f + g * g)
 }
 
-pub struct DirectionLight {
-    direction: Vec3,
-    radiance: Color,
+#[derive(Debug)]
+pub struct PointLight {
+    pub position: Pt3,
+    pub radiance: Color,
 }
 
-impl Light for DirectionLight {
+impl LightTrait for PointLight {
+    fn kind(&self) -> LightKind {
+        LightKind::DELTA_POSITION
+    }
+
+    fn le(&self, _wi: &Ray) -> Color {
+        BLACK
+    }
+
+    fn sample_li<M>(
+        &self,
+        intersection: &Intersection<M>,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+    ) -> Color {
+        let to_light = self.position - intersection.point;
+        let distance = to_light.magnitude();
+        *wi = to_light / distance;
+        *pdf = 1.0;
+        self.radiance / (distance + 1.0).powi(2)
+    }
+
+    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+        0.0
+    }
+}
+
+#[derive(Debug)]
+pub struct DirectionLight {
+    pub direction: Vec3,
+    pub radiance: Color,
+}
+
+impl LightTrait for DirectionLight {
     fn kind(&self) -> LightKind {
         LightKind::DELTA_DIRECTION
     }
@@ -96,19 +131,87 @@ impl Light for DirectionLight {
     }
 }
 
-pub fn estimate_direct<M>(
+#[derive(Debug)]
+pub enum Light {
+    Point(PointLight),
+    Direction(DirectionLight),
+    Hdri(Hdri),
+}
+
+macro_rules! indirect_light_trait {
+    ($self:expr, $fn_name:ident ( $($args: expr),* ) ) => {
+        match $self {
+            Light::Point(light) => light.$fn_name($($args),*),
+            Light::Direction(light) => light.$fn_name($($args),*),
+            Light::Hdri(light) => light.$fn_name($($args),*),
+        }
+    };
+}
+
+impl LightTrait for Light {
+    fn kind(&self) -> LightKind {
+        indirect_light_trait!(self, kind())
+    }
+
+    fn le(&self, wi: &Ray) -> Color {
+        indirect_light_trait!(self, le(wi))
+    }
+
+    fn sample_li<M>(
+        &self,
+        intersection: &Intersection<M>,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+    ) -> Color {
+        indirect_light_trait!(self, sample_li(intersection, wi, pdf))
+    }
+
+    fn pdf_li<M>(&self, intersection: &Intersection<M>, wi: Vec3) -> Scalar {
+        indirect_light_trait!(self, pdf_li(intersection, wi))
+    }
+}
+
+pub fn sample_one_light<M>(
     ray: &Ray,
     intersection: &Intersection<M>,
     bsdf: &BSDF,
     scene: &Scene,
+) -> Color {
+    // let dl = Light::Direction(DirectionLight {
+    //     direction: -scene.camera.hdri_bias.unwrap(),
+    //     radiance: point3(0.5, 0.5, 0.5),
+    // });
+    //
+    // let pl = Light::Point(PointLight {
+    //     position: point3(0.0, 6.0, 0.0),
+    //     radiance: WHITE * 20.0,
+    // });
+    //
+    // let u = scalar::rand();
+    //
+    // // jank
+    // let (light, pdf_scale): (Light, Scalar) = if u < 0.3333 {
+    //     (dl, 0.3333)
+    // } else if u < 0.6666 {
+    //     (pl, 0.3333)
+    // } else {
+    //     (&scene.camera.hdri, 0.3333)
+    // };
+
+    let light = &scene.lights[fastrand::usize(..scene.lights.len())];
+    let pdf_scale = 1.0 / scene.lights.len() as Scalar;
+
+    estimate_direct(ray, intersection, light, bsdf, scene, false) / pdf_scale
+}
+
+pub fn estimate_direct<M>(
+    ray: &Ray,
+    intersection: &Intersection<M>,
+    light: &Light,
+    bsdf: &BSDF,
+    scene: &Scene,
     specular: bool,
 ) -> Color {
-    // let light = &scene.camera.hdri;
-    let light = DirectionLight {
-        direction: vec3(-1.0, -1.0, -1.0).normalize(),
-        radiance: WHITE * 1.8,
-    };
-
     let mut ld = BLACK;
 
     let mut scattering_pdf = 0.0;

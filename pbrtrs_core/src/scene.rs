@@ -9,10 +9,10 @@ use std::marker::PhantomData;
 use std::path::Path;
 
 use crate::light::hdri::Hdri;
+use crate::light::{DirectionLight, Light, PointLight};
 use crate::types::R8G8B8Color;
 use serde::de::{Error as SerdeError, SeqAccess, Visitor};
-use serde::{Deserialize as DeserializeTrait, Deserializer};
-use serde_derive::Deserialize;
+use serde::{Deserialize as DeserializeTrait, Deserialize, Deserializer};
 
 pub trait PixelConverter<T> {
     type Pixel: Pixel;
@@ -203,17 +203,10 @@ pub enum Shape {
     Sphere { radius: Scalar },
 }
 
-// impl<'de> DeserializeTrait<'de> for Shape {
-//     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-//         Scalar::deserialize(deserializer).map(Shape::Sphere)
-//     }
-// }
-
-impl<'de> DeserializeTrait<'de> for Hdri {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let path = String::deserialize(deserializer)?;
+impl Hdri {
+    fn from_path(path: impl AsRef<Path>) -> Self {
         let image = image::io::Reader::open(path).unwrap().decode().unwrap();
-        Ok(Hdri::new(image.into_rgb32f()))
+        Hdri::new(image.into_rgb32f())
     }
 }
 
@@ -222,8 +215,6 @@ struct CameraRaw {
     pub position: Pt3,
     pub direction: Vec3,
     pub sensor_distance: Scalar,
-    pub hdri: Hdri,
-    pub hdri_bias: Option<[u32; 2]>,
 
     pub bounce_limit: usize,
     pub num_samples: usize,
@@ -236,8 +227,6 @@ pub struct Camera {
     pub position: Pt3,
     pub direction: Vec3,
     pub sensor_distance: Scalar,
-    pub hdri: Hdri,
-    pub hdri_bias: Option<Vec3>,
 
     pub bounce_limit: usize,
     pub num_samples: usize,
@@ -248,25 +237,10 @@ pub struct Camera {
 impl<'de> DeserializeTrait<'de> for Camera {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let camera_raw: CameraRaw = CameraRaw::deserialize(deserializer)?;
-        let hdri_bias = camera_raw.hdri_bias.map(|[x, y]| {
-            let (width, height) = camera_raw.hdri.image.dimensions();
-            // Theta = 0 := up, Theta = PI := down
-            let (phi, theta) = (
-                (x as Scalar / width as Scalar) * 2.0 * PI - PI,
-                (y as Scalar / height as Scalar) * PI,
-            );
-
-            (Mat4::from_angle_y(Rad(phi))
-                * Mat4::from_angle_x(Rad(theta))
-                * vec3(0.0, 1.0, 0.0).extend(1.0))
-            .truncate()
-        });
         Ok(Camera {
             position: camera_raw.position,
             direction: camera_raw.direction.normalize(),
             sensor_distance: camera_raw.sensor_distance,
-            hdri: camera_raw.hdri,
-            hdri_bias,
 
             bounce_limit: camera_raw.bounce_limit,
             num_samples: camera_raw.num_samples,
@@ -280,6 +254,38 @@ impl<'de> DeserializeTrait<'de> for Camera {
 pub struct Scene {
     pub camera: Camera,
     pub objects: Vec<Object>,
+    pub lights: Vec<Light>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind")]
+enum LightSerialStructure {
+    Point { position: Pt3, color: Color },
+    Direction { direction: Vec3, color: Color },
+    Hdri { path: String },
+}
+
+impl<'de> DeserializeTrait<'de> for Light {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let light = LightSerialStructure::deserialize(deserializer)?;
+        match light {
+            LightSerialStructure::Point {
+                position,
+                color: radiance,
+            } => Ok(Light::Point(PointLight { position, radiance })),
+            LightSerialStructure::Direction {
+                direction,
+                color: radiance,
+            } => Ok(Light::Direction(DirectionLight {
+                direction: direction.normalize(),
+                radiance,
+            })),
+            LightSerialStructure::Hdri { path } => Ok(Light::Hdri(Hdri::from_path(path))),
+        }
+    }
 }
 
 pub fn load_scene<P: AsRef<Path>>(path: P) -> Scene {

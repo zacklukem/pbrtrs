@@ -1,5 +1,5 @@
 use crate::intersect::Intersection;
-use crate::light::{Light, LightKind};
+use crate::light::{LightKind, LightTrait};
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::PI;
 use crate::types::{color, scalar, Color, Pt2, Ray, Scalar, Vec3};
@@ -152,7 +152,7 @@ impl Hdri {
     }
 }
 
-impl Light for Hdri {
+impl LightTrait for Hdri {
     fn kind(&self) -> LightKind {
         LightKind::DELTA_DIRECTION.set(LightKind::INFINITE)
     }

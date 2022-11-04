@@ -2,13 +2,20 @@
 position = [0.0, 4.0, -6.0]
 direction = [0.0, -4.0, 6.0]
 sensor_distance = 0.9
-hdri = "assets/pizzo_pernice_1k.exr"
-hdri_bias = [615, 105]
 
 bounce_limit = 10
 num_samples = 1000
 width = 512
 height = 400
+
+[[lights]]
+kind = "Hdri"
+path = "assets/pizzo_pernice_1k.exr"
+
+[[lights]]
+kind = "Direction"
+direction = [-0.3, -1.0, -1.0]
+color = [1.0, 1.0, 1.0]
 
 # Small shiny non-metallic sphere
 [[objects]]

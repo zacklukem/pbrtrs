@@ -207,7 +207,13 @@ pub struct MicrofacetReflection<D, F> {
 
 impl<D: Distribution, F: Fresnel> BxDF for MicrofacetReflection<D, F> {
     fn kind(&self) -> BxDFKind {
-        BxDFKind::REFLECTION.set(BxDFKind::GLOSSY)
+        if self.distribution.is_specular() {
+            BxDFKind::REFLECTION
+                .set(BxDFKind::GLOSSY)
+                .set(BxDFKind::SPECULAR)
+        } else {
+            BxDFKind::REFLECTION.set(BxDFKind::GLOSSY)
+        }
     }
 
     fn f(&self, wo: Vec3, wi: Vec3) -> Color {
