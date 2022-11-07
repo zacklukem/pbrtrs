@@ -6,13 +6,14 @@ use std::fmt::{Debug, Formatter};
 use crate::bxdf::distribution::Distribution;
 use crate::debugger;
 use crate::intersect::Intersection;
+use crate::material::TransportMode;
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::{FRAC_1_PI, PI};
-use crate::types::{scalar, Color, Scalar, Vec3};
+use crate::types::{color, scalar, Color, Scalar, Vec3};
 use crate::util::{
     bitfield_methods, random_cos_sample_hemisphere, random_unit_vec, reflect, NormalBasisVector,
 };
-use cgmath::{vec3, Array, ElementWise, InnerSpace, Zero};
+use cgmath::{point3, vec3, Array, ElementWise, InnerSpace, One, Zero};
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -145,8 +146,71 @@ impl BxDF for Lambertian {
     }
 }
 
+#[inline]
+fn fr_schlick(r0: Color, cos_i: Scalar) -> Color {
+    // theta_i is the angle between wi and wo
+    // theta_d is the angle between the half vector and wo, which in perfect specular reflection
+    // is the same as theta_i / 2
+    // Get cos_d with half angle identity
+    let cos_d = ((cos_i + 1.0) / 2.0).sqrt();
+    r0 + (Color::from_value(1.0) - r0) * (1.0 - cos_d).clamp(0.0, 1.0).powi(5)
+}
+
+#[inline]
+fn fr_dielectric(mut cos_i: Scalar, mut eta_i: Scalar, mut eta_t: Scalar) -> Scalar {
+    let entering = cos_i > 0.0;
+    if !entering {
+        std::mem::swap(&mut eta_i, &mut eta_t);
+        cos_i = cos_i.abs()
+    }
+
+    let sin_i = (1.0 - cos_i * cos_i).max(0.0).sqrt();
+    let sin_t = eta_i / eta_t * sin_i;
+    if sin_t >= 1.0 {
+        return 1.0;
+    }
+
+    let cos_t = (1.0 - sin_t * sin_t).max(0.0).sqrt();
+
+    let r_parl = ((eta_t * cos_i) - (eta_i * cos_t)) / ((eta_t * cos_i) + (eta_i * cos_t));
+    let r_perp = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t));
+
+    (r_parl.powi(2) + r_perp.powi(2)) / 2.0
+}
+
+fn schlick_r0_from_eta(eta: Scalar) -> Scalar {
+    (eta - 1.0).powi(2) / (eta + 1.0).powi(2)
+}
+
 pub trait Fresnel: Sized + Copy + Debug {
     fn f(self, cos_i: Scalar) -> Color;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DisneyFresnel {
+    pub eta: Scalar,
+    pub r0: Color,
+    pub metallic: Scalar,
+}
+
+impl Fresnel for DisneyFresnel {
+    fn f(self, cos_i: Scalar) -> Color {
+        let schlick = fr_schlick(self.r0, cos_i);
+        let dielectric = fr_dielectric(cos_i, 1.0, self.eta);
+        color::mix(Color::from_value(dielectric), schlick, self.metallic)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct FresnelDielectric {
+    pub eta_i: Scalar,
+    pub eta_t: Scalar,
+}
+
+impl Fresnel for FresnelDielectric {
+    fn f(self, cos_i: Scalar) -> Color {
+        Color::from_value(fr_dielectric(cos_i, self.eta_i, self.eta_t))
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -155,12 +219,81 @@ pub struct FresnelSchlick(pub Color);
 impl Fresnel for FresnelSchlick {
     #[inline]
     fn f(self, cos_i: Scalar) -> Color {
-        // theta_i is the angle between wi and wo
-        // theta_d is the angle between the half vector and wo, which in perfect specular reflection
-        // is the same as theta_i / 2
-        // Get cos_d with half angle identity
-        let cos_d = ((cos_i + 1.0) / 2.0).sqrt();
-        self.0 + (Color::from_value(1.0) - self.0) * (1.0 - cos_d).powi(5)
+        fr_schlick(self.0, cos_i)
+    }
+}
+
+#[derive(Debug)]
+pub struct TransmissionSpecular<F> {
+    pub color: Color,
+    pub eta_a: Scalar,
+    pub eta_b: Scalar,
+    pub fresnel: F,
+    pub transport_mode: TransportMode,
+}
+
+fn refract(wi: Vec3, normal: Vec3, eta: Scalar) -> Option<Vec3> {
+    let cos_theta_i = normal.dot(wi);
+    let sin2_theta_i = (1.0 - cos_theta_i.powi(2)).max(0.0);
+    let sin2_theta_t = eta.powi(2) * sin2_theta_i;
+    if sin2_theta_t >= 1.0 {
+        None
+    } else {
+        let cos_theta_t = (1.0 - sin2_theta_t).sqrt();
+        Some(eta * -wi + (eta * cos_theta_i - cos_theta_t) * normal)
+    }
+}
+
+fn faceforward(n: Vec3, v: Vec3) -> Vec3 {
+    if n.dot(v) < 0.0 {
+        -n
+    } else {
+        n
+    }
+}
+
+impl<F: Fresnel> BxDF for TransmissionSpecular<F> {
+    fn kind(&self) -> BxDFKind {
+        BxDFKind::TRANSMISSION.set(BxDFKind::SPECULAR)
+    }
+
+    fn f(&self, _wo: Vec3, _wi: Vec3) -> Color {
+        BLACK
+    }
+
+    fn sample_f(
+        &self,
+        wo: Vec3,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+        sampled_kind: &mut BxDFKind,
+    ) -> Color {
+        *sampled_kind = self.kind();
+        *pdf = 1.0;
+        let entering = wo.cos_theta() > 0.0;
+        let eta_frac = if entering {
+            self.eta_a / self.eta_b
+        } else {
+            self.eta_b / self.eta_a
+        };
+
+        *wi = if let Some(wi) = refract(wo, faceforward(vec3(0.0, 0.0, 1.0), wo), eta_frac) {
+            wi
+        } else {
+            return BLACK;
+        };
+
+        let mut ft = self.color.mul_element_wise(
+            point3(1.0, 1.0, 1.0).sub_element_wise(self.fresnel.f(wi.cos_theta())),
+        );
+        if self.transport_mode == TransportMode::Radiance {
+            ft *= eta_frac.powi(2);
+        }
+        ft / wi.abs_cos_theta()
+    }
+
+    fn pdf(&self, _wo: Vec3, _wi: Vec3) -> Scalar {
+        0.0
     }
 }
 
@@ -369,7 +502,7 @@ impl<'arena> BSDF<'arena> {
         *pdf = 0.0;
 
         let wo = self.world_to_normal(wo_world);
-        if wo.z <= 0.0 {
+        if wo.z == 0.0 {
             return BLACK;
         }
         let mut wi = Vec3::zero();

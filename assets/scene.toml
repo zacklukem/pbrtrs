@@ -1,6 +1,6 @@
 [camera]
-position = [0.0, 4.0, -6.0]
-direction = [0.0, -4.0, 6.0]
+position = [0.0, 2.0, -6.0]
+direction = [0.0, -1.0, 6.0]
 sensor_distance = 0.9
 exposure_time = 0.2
 aperture = 0.2
@@ -39,15 +39,33 @@ clearcoat = 0.0
 clearcoat_gloss = 0.0
 
 # Small shiny non-metallic sphere
+#[[objects]]
+#shape = { kind = "Sphere", radius = 1.0 }
+#position = [0.0, 1.0, 0.0]
+#
+#[objects.material]
+#base_color = [0.8, 0.8, 1.0]
+#subsurface = 0.0
+#metallic = 0.0
+#specular = 0.1
+#specular_tint = 0.0
+#roughness = 0.0
+#anisotropic = 0.0
+#sheen = 0.0
+#sheen_tint = 0.0
+#clearcoat = 0.0
+#clearcoat_gloss = 0.0
+#transmission = 0.0
+
 [[objects]]
 shape = { kind = "Sphere", radius = 1.0 }
 position = [0.0, 1.0, 0.0]
 
 [objects.material]
-base_color = [0.8, 0.8, 1.0]
+base_color = [1.0, 1.0, 1.0]
 subsurface = 0.0
 metallic = 0.0
-specular = 0.1
+specular = 0.2
 specular_tint = 0.0
 roughness = 0.0
 anisotropic = 0.0
@@ -55,6 +73,8 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 1.0
+ior = 1.5
 
 # roughish non-metallic sphere
 [[objects]]
@@ -73,6 +93,8 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
 
 # Metallic sphere
 [[objects]]
@@ -91,6 +113,8 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
 
 # rough sphere
 [[objects]]
@@ -110,6 +134,8 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
 
 # texture sphere
 [[objects]]
@@ -128,6 +154,8 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
 
 # Big Sphere
 [[objects]]
@@ -146,3 +174,5 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5

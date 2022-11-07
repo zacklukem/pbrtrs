@@ -177,27 +177,6 @@ pub fn sample_one_light<M>(
     bsdf: &BSDF,
     scene: &Scene,
 ) -> Color {
-    // let dl = Light::Direction(DirectionLight {
-    //     direction: -scene.camera.hdri_bias.unwrap(),
-    //     radiance: point3(0.5, 0.5, 0.5),
-    // });
-    //
-    // let pl = Light::Point(PointLight {
-    //     position: point3(0.0, 6.0, 0.0),
-    //     radiance: WHITE * 20.0,
-    // });
-    //
-    // let u = scalar::rand();
-    //
-    // // jank
-    // let (light, pdf_scale): (Light, Scalar) = if u < 0.3333 {
-    //     (dl, 0.3333)
-    // } else if u < 0.6666 {
-    //     (pl, 0.3333)
-    // } else {
-    //     (&scene.camera.hdri, 0.3333)
-    // };
-
     let light = &scene.lights[fastrand::usize(..scene.lights.len())];
     let pdf_scale = 1.0 / scene.lights.len() as Scalar;
 

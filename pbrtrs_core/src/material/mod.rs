@@ -1,5 +1,8 @@
 use crate::bxdf::distribution::TrowbridgeReitzDistribution;
-use crate::bxdf::{BxDF, FresnelSchlick, Lambertian, MicrofacetReflection, MirrorSpecular, BSDF};
+use crate::bxdf::{
+    BxDF, FresnelDielectric, FresnelSchlick, Lambertian, MicrofacetReflection, MirrorSpecular,
+    TransmissionSpecular, BSDF,
+};
 use crate::intersect::Intersection;
 use crate::scene::{DisneyMaterial, SampledDisneyMaterial};
 use crate::types::color::WHITE;
@@ -7,6 +10,7 @@ use crate::types::{color, Color, Pt2};
 use bumpalo::Bump;
 use cgmath::{point2, Array};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransportMode {
     Radiance,
     Importance,
@@ -41,13 +45,15 @@ impl Material for DisneyMaterial {
             sheen_tint: self.sheen_tint.get(uv),
             clearcoat: self.clearcoat.get(uv),
             clearcoat_gloss: self.clearcoat_gloss.get(uv),
+            transmission: self.transmission.get(uv),
+            ior: self.ior.get(uv),
         }
     }
 
     fn compute_scattering<'arena>(
         si: &Intersection<Self::Sampled>,
         arena: &'arena Bump,
-        _mode: TransportMode,
+        transport_mode: TransportMode,
         allow_multiple_lobes: bool,
     ) -> BSDF<'arena> {
         let SampledDisneyMaterial {
@@ -59,9 +65,27 @@ impl Material for DisneyMaterial {
             clearcoat,
             clearcoat_gloss,
             anisotropic,
+            transmission,
+            ior,
             ..
         } = si.sampled_material;
         let mut bsdf = BSDF::new(si);
+
+        if transmission > 0.0 {
+            let transmission = arena.alloc(TransmissionSpecular {
+                color: base_color,
+                eta_a: 1.0,
+                eta_b: ior,
+                fresnel: FresnelDielectric {
+                    eta_i: 1.0,
+                    eta_t: ior,
+                },
+                transport_mode,
+            });
+            bsdf.add(transmission);
+            return bsdf;
+        }
+
         if metallic != 1.0 {
             let lambert = arena.alloc(Lambertian(base_color).scale(1.0 - metallic));
             bsdf.add(lambert);

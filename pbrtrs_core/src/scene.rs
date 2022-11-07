@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 
 use std::path::Path;
 
+use crate::bxdf::TransmissionSpecular;
 use crate::light::hdri::Hdri;
 use crate::light::{DirectionLight, Light, PointLight};
 use crate::types::R8G8B8Color;
@@ -153,6 +154,8 @@ pub struct DisneyMaterial {
     pub sheen_tint: Texture<Scalar, Luma8ColorPixelConverter>,
     pub clearcoat: Texture<Scalar, Luma8ColorPixelConverter>,
     pub clearcoat_gloss: Texture<Scalar, Luma8ColorPixelConverter>,
+    pub transmission: Texture<Scalar, Luma8ColorPixelConverter>,
+    pub ior: Texture<Scalar, Luma8ColorPixelConverter>,
 }
 
 #[derive(Debug)]
@@ -168,6 +171,8 @@ pub struct SampledDisneyMaterial {
     pub sheen_tint: Scalar,
     pub clearcoat: Scalar,
     pub clearcoat_gloss: Scalar,
+    pub transmission: Scalar,
+    pub ior: Scalar,
 }
 
 impl Default for DisneyMaterial {
@@ -184,6 +189,8 @@ impl Default for DisneyMaterial {
             sheen_tint: Default::default(),
             clearcoat: Default::default(),
             clearcoat_gloss: Default::default(),
+            transmission: Default::default(),
+            ior: Default::default(),
         }
     }
 }
