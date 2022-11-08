@@ -1,9 +1,10 @@
 extern crate bumpalo;
 extern crate cgmath;
+extern crate core;
 extern crate fastrand;
 extern crate image;
 extern crate pbrtrs_core;
-extern crate show_image;
+extern crate tev_client;
 extern crate threadpool;
 
 mod image_tiler;
@@ -13,17 +14,16 @@ use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
 
 use bumpalo::Bump;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
-use image::{Rgb, RgbImage};
+use image::{Rgb, Rgb32FImage};
 use image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::raytracer::ray_color;
 use pbrtrs_core::scene::load_scene;
-use pbrtrs_core::types::scalar::consts::PI;
-use show_image::event::WindowEvent;
-use show_image::WindowOptions;
 use std::num::NonZeroUsize;
+use std::process::Command;
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
+use tev_client::{PacketCreateImage, PacketUpdateImage, TevClient};
 
 #[cfg(feature = "enable_debugger")]
 use pbrtrs_core::debugger::debug_info;
@@ -31,10 +31,12 @@ use pbrtrs_core::debugger::debug_info;
 #[cfg(feature = "enable_debugger")]
 const DEBUG_PIXEL: (usize, usize) = (175, 153);
 
-#[show_image::main]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     // Deterministic rendering
     fastrand::seed(0x8815_6e97_8ca3_1877);
+
+    let mut tev_client =
+        TevClient::spawn(Command::new("/Applications/tev.app/Contents/MacOS/tev")).unwrap();
 
     println!("Loading scene...");
     let scene = Arc::new(load_scene("assets/scene.toml"));
@@ -43,14 +45,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let image_width = scene.camera.width;
     let image_height = scene.camera.height;
 
-    let image_viewer = show_image::create_window(
-        "pbrtrs",
-        WindowOptions {
-            size: Some([image_width as u32 * 3, image_height as u32 * 3]),
-            ..WindowOptions::default()
-        },
-    )
-    .unwrap();
+    tev_client
+        .send(PacketCreateImage {
+            image_name: "out",
+            grab_focus: false,
+            width: image_width as u32,
+            height: image_height as u32,
+            channel_names: &["R", "G", "B"],
+        })
+        .unwrap();
 
     let aspect_ratio = image_width as Scalar / image_height as Scalar;
     let mut image_tile_generator = ImageTileGenerator::new(image_width, image_height);
@@ -81,14 +84,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // start of rt
     let rt_start = Instant::now();
 
-    while let Some(tile) = image_tile_generator.get_tile() {
+    while let Some(tile) = image_tile_generator.get_tile(Rgb([0.0, 0.0, 0.0])) {
         let scene = scene.clone();
         let image_writer_tx = image_writer_tx.clone();
         let seed = fastrand::u64(..);
         pool.execute(move || {
             fastrand::seed(seed);
             // Render tile
-            let mut tile: ImageTile<R8G8B8Color> = tile;
+            let mut tile: ImageTile<Rgb<f32>> = tile;
             while let Some((pixel, x, y)) = tile.next_tile() {
                 #[cfg(feature = "enable_debugger")]
                 debugger::set_should_debug_pixel((x, y) == DEBUG_PIXEL);
@@ -117,8 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 color /= scene.camera.num_samples as Scalar;
                 debugger::end_pixel!(color);
-                color = color.map(|v| v.sqrt());
-                *pixel = color.into();
+                *pixel = Rgb([color.x, color.y, color.z]);
             }
 
             #[cfg(feature = "enable_axis")]
@@ -142,8 +144,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .unwrap();
 
-    let mut output_image =
-        RgbImage::from_pixel(image_width as u32, image_height as u32, Rgb([80, 80, 80]));
+    let mut output_image = Rgb32FImage::from_pixel(
+        image_width as u32,
+        image_height as u32,
+        Rgb([0.3, 0.3, 0.3]),
+    );
 
     let mut time = Instant::now();
 
@@ -159,7 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let pixel = *tile.get(x + y * width);
 
-                output_image.put_pixel(image_x as u32, image_y as u32, pixel.into());
+                output_image.put_pixel(image_x as u32, image_y as u32, pixel);
             }
         }
         if time.elapsed() > Duration::from_millis(250) {
@@ -173,15 +178,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 elapsed_time, remaining_time, time_per_tile,
             );
 
-            image_viewer
-                .set_image("image", output_image.clone())
+            tev_client
+                .send(PacketUpdateImage {
+                    image_name: "out",
+                    grab_focus: false,
+                    channel_names: &["R", "G", "B"],
+                    channel_offsets: &[0, 1, 2],
+                    channel_strides: &[3, 3, 3],
+                    x: 0,
+                    y: 0,
+                    width: image_width as u32,
+                    height: image_height as u32,
+                    data: &output_image,
+                })
                 .unwrap();
+
             time = Instant::now();
         }
     }
 
-    image_viewer
-        .set_image("image", output_image.clone())
+    tev_client
+        .send(PacketUpdateImage {
+            image_name: "out",
+            grab_focus: false,
+            channel_names: &["R", "G", "B"],
+            channel_offsets: &[0, 1, 2],
+            channel_strides: &[3, 3, 3],
+            x: 0,
+            y: 0,
+            width: image_width as u32,
+            height: image_height as u32,
+            data: &output_image,
+        })
         .unwrap();
 
     pool_ender_thread.join().unwrap();
@@ -192,16 +220,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         debug.save("debug_out.txt");
     }
 
-    output_image.save("./out.png").unwrap();
-
-    let window_rx = image_viewer.event_channel().unwrap();
-    loop {
-        if let WindowEvent::CloseRequested(_) = window_rx.recv().unwrap() {
-            break;
-        }
-    }
-
-    Ok(())
+    output_image.save("./out.exr").unwrap();
 }
 
 #[cfg(feature = "enable_axis")]

@@ -13,5 +13,5 @@ cgmath = { version = "0.18", features = ["serde", "swizzle"] }
 image = "0.24"
 threadpool = "1.8"
 fastrand = "1.8"
-show-image = { version ="0.13.1", features = ["image"] }
+tev_client = "0.5.2"
 bumpalo = "3.11"

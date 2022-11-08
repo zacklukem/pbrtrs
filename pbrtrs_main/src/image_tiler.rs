@@ -28,10 +28,10 @@ impl ImageTileGenerator {
         self.tiles.len()
     }
 
-    pub fn get_tile<T: Copy + Default>(&mut self) -> Option<ImageTile<T>> {
+    pub fn get_tile<T: Copy>(&mut self, default: T) -> Option<ImageTile<T>> {
         let (tile_x, tile_y, tile_width, tile_height) = self.tiles.pop()?;
         Some(ImageTile {
-            tile: vec![Default::default(); tile_width * tile_height],
+            tile: vec![default; tile_width * tile_height],
             x: tile_x,
             y: tile_y,
             width: tile_width,

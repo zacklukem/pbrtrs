@@ -6,4 +6,4 @@ by Matt Pharr, Wenzel Jakob, and Greg Humphreys
 
 Example output:
 
-![Example rendered output](./out.png)
+![Example rendered output](./out.exr)
