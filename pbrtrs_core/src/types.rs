@@ -59,19 +59,25 @@ pub mod color {
 pub struct Ray {
     pub origin: Pt3,
     pub direction: Vec3,
+    pub time: Scalar,
 }
 
 impl Ray {
-    pub fn new(origin: Pt3, direction: Vec3) -> Ray {
+    pub fn new(origin: Pt3, direction: Vec3, time: Scalar) -> Ray {
         Ray {
             origin,
             direction: direction.normalize(),
+            time,
         }
     }
 
-    pub fn new_no_normalize(origin: Pt3, direction: Vec3) -> Ray {
+    pub fn new_no_normalize(origin: Pt3, direction: Vec3, time: Scalar) -> Ray {
         debug_assert_eq!(direction.magnitude2(), 1.0);
-        Ray { origin, direction }
+        Ray {
+            origin,
+            direction,
+            time,
+        }
     }
 
     pub fn at(&self, t: Scalar) -> Pt3 {

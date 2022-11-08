@@ -1,7 +1,7 @@
 use crate::types::scalar::consts::PI;
 use crate::types::{color, Color, Euler, Mat4, Pt2, Pt3, Scalar, Vec3};
 
-use cgmath::{vec3, EuclideanSpace, InnerSpace, Rad};
+use cgmath::{vec3, EuclideanSpace, InnerSpace, Rad, Zero};
 use image::{ImageBuffer, Luma, Pixel, Rgb, Rgb32FImage};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -192,8 +192,8 @@ impl Default for DisneyMaterial {
 pub struct Object {
     pub shape: Shape,
     pub position: Pt3,
-    pub rotation: Option<Euler>,
-    pub scale: Option<Euler>,
+    #[serde(default = "Vec3::zero")]
+    pub motion: Vec3,
     pub material: DisneyMaterial,
 }
 
@@ -215,6 +215,7 @@ struct CameraRaw {
     pub position: Pt3,
     pub direction: Vec3,
     pub sensor_distance: Scalar,
+    pub exposure_time: Scalar,
 
     pub bounce_limit: usize,
     pub num_samples: usize,
@@ -227,6 +228,7 @@ pub struct Camera {
     pub position: Pt3,
     pub direction: Vec3,
     pub sensor_distance: Scalar,
+    pub exposure_time: Scalar,
 
     pub bounce_limit: usize,
     pub num_samples: usize,
@@ -236,16 +238,25 @@ pub struct Camera {
 
 impl<'de> DeserializeTrait<'de> for Camera {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let camera_raw: CameraRaw = CameraRaw::deserialize(deserializer)?;
+        let CameraRaw {
+            position,
+            direction,
+            sensor_distance,
+            exposure_time,
+            bounce_limit,
+            num_samples,
+            width,
+            height,
+        } = CameraRaw::deserialize(deserializer)?;
         Ok(Camera {
-            position: camera_raw.position,
-            direction: camera_raw.direction.normalize(),
-            sensor_distance: camera_raw.sensor_distance,
-
-            bounce_limit: camera_raw.bounce_limit,
-            num_samples: camera_raw.num_samples,
-            width: camera_raw.width,
-            height: camera_raw.height,
+            position,
+            direction: direction.normalize(),
+            sensor_distance,
+            exposure_time,
+            bounce_limit,
+            num_samples,
+            width,
+            height,
         })
     }
 }

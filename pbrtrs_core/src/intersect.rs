@@ -119,10 +119,11 @@ impl Scene {
     pub fn intersect(&self, ray: &Ray) -> PossibleIntersection<SampledDisneyMaterial> {
         let mut nearest = PossibleIntersection::Miss;
         for object in &self.objects {
-            match object
-                .shape
-                .intersect(ray, object.position.to_vec(), &object.material)
-            {
+            match object.shape.intersect(
+                ray,
+                object.position.to_vec() + object.motion * ray.time,
+                &object.material,
+            ) {
                 PossibleIntersection::Hit(intersection) => {
                     if nearest.is_miss() || intersection.distance < nearest.unwrap().distance {
                         nearest = PossibleIntersection::Hit(intersection);

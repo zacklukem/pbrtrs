@@ -230,7 +230,7 @@ pub fn estimate_direct<M>(
         // TODO: handle medium interactions
 
         if wi.dot(intersection.normal) > 0.0 {
-            let inter_to_light = Ray::new(intersection.point, wi);
+            let inter_to_light = Ray::new(intersection.point, wi, ray.time);
             if scene.intersect(&inter_to_light).is_miss() {
                 let f = bsdf.f(-ray.direction, wi, bxdf_kind);
                 let f = f * wi.dot(intersection.normal).abs();
@@ -288,7 +288,7 @@ pub fn estimate_direct<M>(
             };
 
             if wi.dot(intersection.normal) > 0.0 {
-                let ray = Ray::new(intersection.point, wi);
+                let ray = Ray::new(intersection.point, wi, ray.time);
 
                 if scene.intersect(&ray).is_miss() {
                     let li = light.le(&ray);

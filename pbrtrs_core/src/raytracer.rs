@@ -72,7 +72,7 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                     break;
                 }
 
-                ray = Ray::new(intersection.point, wi);
+                ray = Ray::new(intersection.point, wi, ray.time);
             }
             PossibleIntersection::Ignored => {
                 debugger::ray_print!("Ignored");

@@ -98,12 +98,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut color = Color::origin();
                 for _ in 0..scene.camera.num_samples {
                     debugger::begin_sample!();
+                    let time = scalar::rand() * scene.camera.exposure_time;
                     let x = x as Scalar + scalar::rand();
                     let y = y as Scalar + scalar::rand();
                     let x = (x / image_width as Scalar) * 2.0 - 1.0;
                     let y = ((y / image_height as Scalar) * 2.0 - 1.0) / aspect_ratio;
                     let ray_dir = camera_basis * vec3(x, y, scene.camera.sensor_distance);
-                    let ray = Ray::new(scene.camera.position, ray_dir);
+                    let ray = Ray::new(scene.camera.position, ray_dir, time);
 
                     let sample_color = ray_color(&ray, &scene, &arena);
                     debugger::end_sample!(sample_color);
