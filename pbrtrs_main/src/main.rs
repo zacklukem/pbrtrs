@@ -11,6 +11,7 @@ mod image_tiler;
 
 use pbrtrs_core::debugger;
 use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
+use std::fmt::{Display, Formatter};
 
 use bumpalo::Bump;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
@@ -18,6 +19,7 @@ use image::{Rgb, Rgb32FImage};
 use image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::raytracer::ray_color;
 use pbrtrs_core::scene::load_scene;
+use pbrtrs_core::util::random_concentric_disk;
 use std::num::NonZeroUsize;
 use std::process::Command;
 use std::sync::{mpsc, Arc};
@@ -27,7 +29,6 @@ use tev_client::{PacketCreateImage, PacketUpdateImage, TevClient};
 
 #[cfg(feature = "enable_debugger")]
 use pbrtrs_core::debugger::debug_info;
-use pbrtrs_core::util::random_concentric_disk;
 
 #[cfg(feature = "enable_debugger")]
 const DEBUG_PIXEL: (usize, usize) = (175, 153);
@@ -153,7 +154,7 @@ fn main() {
         .spawn(move || {
             pool.join();
             let end = rt_start.elapsed();
-            println!("Time required: {:?}", end);
+            println!("Time required: {}", HMSDuration(end));
             image_writer_tx.send(None).unwrap();
         })
         .unwrap();
@@ -207,8 +208,8 @@ fn main() {
             let remaining_time = time_per_tile * remaining_tiles as u32;
 
             println!(
-                "{num_tiles}/{total_num_tiles}; Elapsed: {:?}, Remaining Time: {:?}, Time Per Tile: {:?}",
-                elapsed_time, remaining_time, time_per_tile,
+                "{num_tiles}/{total_num_tiles}; Elapsed: {}, Remaining Time: {}, Time Per Tile: {:?}",
+                HMSDuration(elapsed_time), HMSDuration(remaining_time), time_per_tile,
             );
 
             update_image!();
@@ -228,6 +229,26 @@ fn main() {
     }
 
     output_image.save("./out.exr").unwrap();
+}
+
+#[repr(transparent)]
+struct HMSDuration(Duration);
+
+impl Display for HMSDuration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let secs = self.0.as_secs();
+        let mins = secs / 60;
+
+        let secs_only = secs % 60;
+        let mins_only = mins % 60;
+        let hours_only = mins / 60;
+
+        if secs > 0 {
+            write!(f, "{:02}:{:02}:{:02}", hours_only, mins_only, secs_only)
+        } else {
+            write!(f, "{}ms", self.0.as_millis())
+        }
+    }
 }
 
 #[cfg(feature = "enable_axis")]
