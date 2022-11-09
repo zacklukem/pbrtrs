@@ -35,8 +35,9 @@ fn main() {
     // Deterministic rendering
     fastrand::seed(0x8815_6e97_8ca3_1877);
 
-    let mut tev_client =
-        TevClient::spawn(Command::new("/Applications/tev.app/Contents/MacOS/tev")).unwrap();
+    let tev_path = std::env::var("TEV_PATH").expect("TEV_PATH not set");
+
+    let mut tev_client = TevClient::spawn(Command::new(tev_path)).unwrap();
 
     println!("Loading scene...");
     let scene = Arc::new(load_scene("assets/scene.toml"));
@@ -154,6 +155,25 @@ fn main() {
 
     let mut num_tiles: usize = 0;
 
+    macro_rules! update_image {
+        () => {
+            tev_client
+                .send(PacketUpdateImage {
+                    image_name: "out",
+                    grab_focus: false,
+                    channel_names: &["R", "G", "B"],
+                    channel_offsets: &[0, 1, 2],
+                    channel_strides: &[3, 3, 3],
+                    x: 0,
+                    y: 0,
+                    width: image_width as u32,
+                    height: image_height as u32,
+                    data: &output_image,
+                })
+                .unwrap()
+        };
+    }
+
     while let Some(tile) = image_writer_rx.recv().unwrap() {
         num_tiles += 1;
         let (tile_x, tile_y) = tile.location();
@@ -178,39 +198,13 @@ fn main() {
                 elapsed_time, remaining_time, time_per_tile,
             );
 
-            tev_client
-                .send(PacketUpdateImage {
-                    image_name: "out",
-                    grab_focus: false,
-                    channel_names: &["R", "G", "B"],
-                    channel_offsets: &[0, 1, 2],
-                    channel_strides: &[3, 3, 3],
-                    x: 0,
-                    y: 0,
-                    width: image_width as u32,
-                    height: image_height as u32,
-                    data: &output_image,
-                })
-                .unwrap();
+            update_image!();
 
             time = Instant::now();
         }
     }
 
-    tev_client
-        .send(PacketUpdateImage {
-            image_name: "out",
-            grab_focus: false,
-            channel_names: &["R", "G", "B"],
-            channel_offsets: &[0, 1, 2],
-            channel_strides: &[3, 3, 3],
-            x: 0,
-            y: 0,
-            width: image_width as u32,
-            height: image_height as u32,
-            data: &output_image,
-        })
-        .unwrap();
+    update_image!();
 
     pool_ender_thread.join().unwrap();
 
