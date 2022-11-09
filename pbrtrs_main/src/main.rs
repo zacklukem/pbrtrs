@@ -27,6 +27,7 @@ use tev_client::{PacketCreateImage, PacketUpdateImage, TevClient};
 
 #[cfg(feature = "enable_debugger")]
 use pbrtrs_core::debugger::debug_info;
+use pbrtrs_core::util::random_concentric_disk;
 
 #[cfg(feature = "enable_debugger")]
 const DEBUG_PIXEL: (usize, usize) = (175, 153);
@@ -103,12 +104,24 @@ fn main() {
                 for _ in 0..scene.camera.num_samples {
                     debugger::begin_sample!();
                     let time = scalar::rand() * scene.camera.exposure_time;
+
                     let x = x as Scalar + scalar::rand();
                     let y = y as Scalar + scalar::rand();
                     let x = (x / image_width as Scalar) * 2.0 - 1.0;
                     let y = ((y / image_height as Scalar) * 2.0 - 1.0) / aspect_ratio;
                     let ray_dir = camera_basis * vec3(x, y, scene.camera.sensor_distance);
-                    let ray = Ray::new(scene.camera.position, ray_dir, time);
+
+                    let pc = scene.camera.position;
+                    let pr = scene.camera.position
+                        + camera_basis
+                            * (scene.camera.aperture * random_concentric_disk())
+                                .to_vec()
+                                .extend(0.0);
+                    let wp = ray_dir.normalize();
+                    let pl = pc + scene.camera.focus_distance * wp;
+                    let wr = pl - pr;
+
+                    let ray = Ray::new(pr, wr, time);
 
                     let sample_color = ray_color(&ray, &scene, &arena);
                     debugger::end_sample!(sample_color);

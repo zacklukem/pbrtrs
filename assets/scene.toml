@@ -3,6 +3,8 @@ position = [0.0, 4.0, -6.0]
 direction = [0.0, -4.0, 6.0]
 sensor_distance = 0.9
 exposure_time = 0.2
+aperture = 0.2
+focus_distance = 7.2
 
 bounce_limit = 10
 num_samples = 10000
@@ -17,6 +19,24 @@ path = "assets/pizzo_pernice_1k.exr"
 kind = "Direction"
 direction = [-0.3, -1.0, -1.0]
 color = [1.0, 1.0, 1.0]
+
+# Small shiny non-metallic sphere far
+[[objects]]
+shape = { kind = "Sphere", radius = 1.0 }
+position = [1.0, 1.0, 6.0]
+
+[objects.material]
+base_color = [0.8, 1.0, 0.8]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.4
+specular_tint = 0.0
+roughness = 0.3
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
 
 # Small shiny non-metallic sphere
 [[objects]]
