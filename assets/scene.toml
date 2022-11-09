@@ -3,7 +3,7 @@ position = [0.0, 2.0, -6.0]
 direction = [0.0, -1.0, 6.0]
 sensor_distance = 0.9
 exposure_time = 0.2
-aperture = 0.0
+aperture = 0.1
 focus_distance = 6.08
 
 bounce_limit = 10
