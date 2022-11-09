@@ -298,12 +298,12 @@ impl<F: Fresnel> BxDF for TransmissionSpecular<F> {
 }
 
 #[derive(Debug)]
-pub struct MirrorSpecular<F> {
+pub struct ReflectionSpecular<F> {
     pub color: Color,
     pub fresnel: F,
 }
 
-impl<F: Fresnel> BxDF for MirrorSpecular<F> {
+impl<F: Fresnel> BxDF for ReflectionSpecular<F> {
     fn kind(&self) -> BxDFKind {
         BxDFKind::REFLECTION.set(BxDFKind::SPECULAR)
     }
@@ -323,6 +323,68 @@ impl<F: Fresnel> BxDF for MirrorSpecular<F> {
         *wi = vec3(-wo.x, -wo.y, wo.z);
         *pdf = 1.0;
         self.fresnel.f(wi.cos_theta()).mul_element_wise(self.color) / wi.abs_cos_theta()
+    }
+
+    fn pdf(&self, _wo: Vec3, _wi: Vec3) -> Scalar {
+        0.0
+    }
+}
+
+#[derive(Debug)]
+pub struct FresnelSpecular {
+    pub color: Color,
+    pub eta_a: Scalar,
+    pub eta_b: Scalar,
+    pub transport_mode: TransportMode,
+}
+
+impl BxDF for FresnelSpecular {
+    fn kind(&self) -> BxDFKind {
+        BxDFKind::REFLECTION
+            .set(BxDFKind::TRANSMISSION)
+            .set(BxDFKind::SPECULAR)
+    }
+
+    fn f(&self, _wo: Vec3, _wi: Vec3) -> Color {
+        BLACK
+    }
+
+    fn sample_f(
+        &self,
+        wo: Vec3,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+        sampled_kind: &mut BxDFKind,
+    ) -> Color {
+        let f = fr_dielectric(wo.cos_theta(), self.eta_a, self.eta_b);
+        if scalar::rand() < f {
+            *wi = vec3(-wo.x, -wo.y, wo.z);
+            *sampled_kind = BxDFKind::REFLECTION.set(BxDFKind::SPECULAR);
+            *pdf = f;
+            self.color.mul_element_wise(f / wi.abs_cos_theta())
+        } else {
+            *pdf = 1.0 - f;
+            *sampled_kind = BxDFKind::TRANSMISSION.set(BxDFKind::SPECULAR);
+
+            let entering = wo.cos_theta() > 0.0;
+            let eta_frac = if entering {
+                self.eta_a / self.eta_b
+            } else {
+                self.eta_b / self.eta_a
+            };
+
+            *wi = if let Some(wi) = refract(wo, faceforward(vec3(0.0, 0.0, 1.0), wo), eta_frac) {
+                wi
+            } else {
+                return BLACK;
+            };
+
+            let mut ft = self.color.mul_element_wise(1.0 - f);
+            if self.transport_mode == TransportMode::Radiance {
+                ft *= eta_frac.powi(2);
+            }
+            ft / wi.abs_cos_theta()
+        }
     }
 
     fn pdf(&self, _wo: Vec3, _wi: Vec3) -> Scalar {

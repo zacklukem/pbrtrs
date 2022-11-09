@@ -1,7 +1,7 @@
 use crate::bxdf::distribution::TrowbridgeReitzDistribution;
 use crate::bxdf::{
-    BxDF, FresnelDielectric, FresnelSchlick, Lambertian, MicrofacetReflection, MirrorSpecular,
-    TransmissionSpecular, BSDF,
+    BxDF, FresnelDielectric, FresnelSchlick, FresnelSpecular, Lambertian, MicrofacetReflection,
+    ReflectionSpecular, TransmissionSpecular, BSDF,
 };
 use crate::intersect::Intersection;
 use crate::scene::{DisneyMaterial, SampledDisneyMaterial};
@@ -72,14 +72,10 @@ impl Material for DisneyMaterial {
         let mut bsdf = BSDF::new(si);
 
         if transmission > 0.0 {
-            let transmission = arena.alloc(TransmissionSpecular {
+            let transmission = arena.alloc(FresnelSpecular {
                 color: base_color,
                 eta_a: 1.0,
                 eta_b: ior,
-                fresnel: FresnelDielectric {
-                    eta_i: 1.0,
-                    eta_t: ior,
-                },
                 transport_mode,
             });
             bsdf.add(transmission);

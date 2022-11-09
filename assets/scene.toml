@@ -3,11 +3,11 @@ position = [0.0, 2.0, -6.0]
 direction = [0.0, -1.0, 6.0]
 sensor_distance = 0.9
 exposure_time = 0.2
-aperture = 0.2
-focus_distance = 7.2
+aperture = 0.0
+focus_distance = 6.08
 
 bounce_limit = 10
-num_samples = 10000
+num_samples = 1000
 width = 512
 height = 400
 
@@ -22,8 +22,8 @@ color = [1.0, 1.0, 1.0]
 
 # Small shiny non-metallic sphere far
 [[objects]]
-shape = { kind = "Sphere", radius = 1.0 }
-position = [1.0, 1.0, 6.0]
+shape = { kind = "Sphere", radius = 0.3 }
+position = [-0.5, 1.0, -5.0]
 
 [objects.material]
 base_color = [0.8, 1.0, 0.8]
@@ -37,6 +37,8 @@ sheen = 0.0
 sheen_tint = 0.0
 clearcoat = 0.0
 clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
 
 # Small shiny non-metallic sphere
 #[[objects]]
