@@ -14,7 +14,7 @@ height = 400
 
 [[lights]]
 kind = "Hdri"
-path = "assets/pizzo_pernice_1k.exr"
+path = "./pizzo_pernice_1k.exr"
 strength = 1.0
 
 #[[lights]]
@@ -140,7 +140,7 @@ shape = { kind = "Sphere", radius = 1.0 }
 position = [4.0, 1.0, 0.0]
 
 [objects.material]
-base_color = "assets/Marble13/Marble13_COL_3K.jpg"
+base_color = "./Marble13/Marble13_COL_3K.jpg"
 subsurface = 0.0
 metallic = 0.0
 specular = 0.0

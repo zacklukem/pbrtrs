@@ -44,7 +44,8 @@ fn main() {
     let mut tev_client = TevClient::spawn(Command::new(tev_path)).unwrap();
 
     println!("Loading scene...");
-    let scene = Arc::new(load_scene("assets/scene.toml"));
+    let scene_path = std::env::args().nth(1).expect("Usage: pbrtrs <scene_path>");
+    let scene = Arc::new(load_scene(scene_path));
     println!("Rendering...");
 
     let image_width = scene.camera.width;
@@ -242,7 +243,7 @@ fn main() {
 
     output_image
         .par_iter_mut()
-        .for_each(|pixel| *pixel = scene.camera.ldr_scale);
+        .for_each(|pixel| *pixel *= scene.camera.ldr_scale);
 
     let output_image = DynamicImage::from(output_image);
     let output_image = output_image.into_rgb8();

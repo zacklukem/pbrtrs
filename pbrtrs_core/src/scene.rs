@@ -6,7 +6,8 @@ use image::{ImageBuffer, Luma, Pixel, Rgb, Rgb32FImage};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use std::path::Path;
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
 
 use crate::bxdf::TransmissionSpecular;
 use crate::light::hdri::Hdri;
@@ -91,7 +92,10 @@ impl<'de, P: PixelConverter<Scalar, Pixel = Luma<u8>>> Visitor<'de> for TextureS
     }
 
     fn visit_str<E: SerdeError>(self, v: &str) -> Result<Self::Value, E> {
-        let image = image::io::Reader::open(v).unwrap().decode().unwrap();
+        let image = image::io::Reader::open(scene_relative_path(v))
+            .unwrap()
+            .decode()
+            .unwrap();
         Ok(Texture::Image(image.into_luma8()))
     }
 }
@@ -114,7 +118,10 @@ impl<'de, P: PixelConverter<Color, Pixel = Rgb<u8>>> Visitor<'de> for TextureCol
     }
 
     fn visit_str<E: SerdeError>(self, v: &str) -> Result<Self::Value, E> {
-        let image = image::io::Reader::open(v).unwrap().decode().unwrap();
+        let image = image::io::Reader::open(scene_relative_path(v))
+            .unwrap()
+            .decode()
+            .unwrap();
         Ok(Texture::Image(image.into_rgb8()))
     }
 
@@ -327,9 +334,10 @@ impl<'de> DeserializeTrait<'de> for Light {
                 direction: direction.normalize(),
                 radiance,
             })),
-            LightSerialStructure::Hdri { path, strength } => {
-                Ok(Light::Hdri(Hdri::from_path(path, strength)))
-            }
+            LightSerialStructure::Hdri { path, strength } => Ok(Light::Hdri(Hdri::from_path(
+                scene_relative_path(path),
+                strength,
+            ))),
             LightSerialStructure::Area {
                 position,
                 shape,
@@ -343,9 +351,37 @@ impl<'de> DeserializeTrait<'de> for Light {
     }
 }
 
+thread_local! {
+    static SCENE_FILE_PATH: RefCell<Option<PathBuf>> = RefCell::new(None);
+}
+
+pub fn scene_relative_path<P: AsRef<Path>>(rel: P) -> PathBuf {
+    SCENE_FILE_PATH.with(|f| {
+        let mut path = f
+            .borrow()
+            .as_ref()
+            .expect("Not currently loading a scene")
+            .clone();
+        path.push(rel);
+        path
+    })
+}
+
 pub fn load_scene<P: AsRef<Path>>(path: P) -> Scene {
+    assert!(path.as_ref().is_file());
+
+    SCENE_FILE_PATH.with(|f| {
+        assert!(f.borrow().is_none());
+        *f.borrow_mut() = Some(path.as_ref().parent().unwrap().to_path_buf());
+    });
+
     let source = std::fs::read_to_string(path).unwrap();
     let mut scene: Scene = toml::from_str(&source).unwrap();
     scene.camera.direction = scene.camera.direction.normalize();
+
+    SCENE_FILE_PATH.with(|f| {
+        *f.borrow_mut() = None;
+    });
+
     scene
 }
