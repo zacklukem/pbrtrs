@@ -211,9 +211,9 @@ pub enum Shape {
 }
 
 impl Hdri {
-    fn from_path(path: impl AsRef<Path>) -> Self {
+    fn from_path(path: impl AsRef<Path>, strength: Scalar) -> Self {
         let image = image::io::Reader::open(path).unwrap().decode().unwrap();
-        Hdri::new(image.into_rgb32f())
+        Hdri::new(image.into_rgb32f(), strength)
     }
 }
 
@@ -288,7 +288,7 @@ pub struct Scene {
 enum LightSerialStructure {
     Point { position: Pt3, color: Color },
     Direction { direction: Vec3, color: Color },
-    Hdri { path: String },
+    Hdri { path: String, strength: Scalar },
 }
 
 impl<'de> DeserializeTrait<'de> for Light {
@@ -309,7 +309,9 @@ impl<'de> DeserializeTrait<'de> for Light {
                 direction: direction.normalize(),
                 radiance,
             })),
-            LightSerialStructure::Hdri { path } => Ok(Light::Hdri(Hdri::from_path(path))),
+            LightSerialStructure::Hdri { path, strength } => {
+                Ok(Light::Hdri(Hdri::from_path(path, strength)))
+            }
         }
     }
 }

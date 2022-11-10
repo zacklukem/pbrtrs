@@ -7,18 +7,19 @@ aperture = 0.1
 focus_distance = 6.08
 
 bounce_limit = 10
-num_samples = 1000
+num_samples = 80000
 width = 512
 height = 400
 
 [[lights]]
 kind = "Hdri"
 path = "assets/pizzo_pernice_1k.exr"
+strength = 1.0
 
 [[lights]]
 kind = "Direction"
 direction = [-0.3, -1.0, -1.0]
-color = [1.0, 1.0, 1.0]
+color = [10.0, 10.0, 10.0]
 
 # Small shiny non-metallic sphere far
 [[objects]]
@@ -39,25 +40,6 @@ clearcoat = 0.0
 clearcoat_gloss = 0.0
 transmission = 0.0
 ior = 1.5
-
-# Small shiny non-metallic sphere
-#[[objects]]
-#shape = { kind = "Sphere", radius = 1.0 }
-#position = [0.0, 1.0, 0.0]
-#
-#[objects.material]
-#base_color = [0.8, 0.8, 1.0]
-#subsurface = 0.0
-#metallic = 0.0
-#specular = 0.1
-#specular_tint = 0.0
-#roughness = 0.0
-#anisotropic = 0.0
-#sheen = 0.0
-#sheen_tint = 0.0
-#clearcoat = 0.0
-#clearcoat_gloss = 0.0
-#transmission = 0.0
 
 [[objects]]
 shape = { kind = "Sphere", radius = 1.0 }
@@ -151,26 +133,6 @@ metallic = 0.0
 specular = 0.0
 specular_tint = 0.0
 roughness = 0.0
-anisotropic = 0.0
-sheen = 0.0
-sheen_tint = 0.0
-clearcoat = 0.0
-clearcoat_gloss = 0.0
-transmission = 0.0
-ior = 1.5
-
-# Big Sphere
-[[objects]]
-shape = { kind = "Sphere", radius = 100.0 }
-position = [0.0, -100.0, 0.0]
-
-[objects.material]
-base_color = [0.6, 0.6, 0.6]
-subsurface = 0.0
-metallic = 0.0
-specular = 0.0
-specular_tint = 0.0
-roughness = 1.0
 anisotropic = 0.0
 sheen = 0.0
 sheen_tint = 0.0

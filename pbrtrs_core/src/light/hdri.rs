@@ -125,15 +125,16 @@ impl Distribution2D {
 pub struct Hdri {
     pub image: Rgb32FImage,
     pub distribution: Distribution2D,
+    pub strength: Scalar,
 }
 
 impl Hdri {
-    pub fn new(image: Rgb32FImage) -> Self {
+    pub fn new(image: Rgb32FImage, strength: Scalar) -> Self {
         let distribution = Distribution2D::new(image.rows().enumerate().map(|(v, row)| {
             let sin_theta = (PI * (v as Scalar + 0.5) / image.height() as Scalar).sin();
             row.map(|p| {
                 let luminance = 0.299 * p.0[0] + 0.587 * p.0[1] + 0.114 * p.0[2];
-                luminance * sin_theta
+                luminance * sin_theta * strength
             })
             .collect::<Vec<_>>()
         }));
@@ -141,6 +142,7 @@ impl Hdri {
         Self {
             image,
             distribution,
+            strength,
         }
     }
 
@@ -148,7 +150,7 @@ impl Hdri {
         let x = ((self.image.width() as Scalar * uv.x) as u32).min(self.image.width() - 1);
         let y = ((self.image.height() as Scalar * uv.y) as u32).min(self.image.height() - 1);
         let [r, g, b] = self.image.get_pixel(x, y).0;
-        color(r, g, b)
+        color(r, g, b) * self.strength
     }
 }
 
