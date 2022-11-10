@@ -1,8 +1,9 @@
-use crate::material::Material;
+use crate::light::{AreaLight, Light};
+use crate::material::{EmptyMaterial, Material};
 use crate::scene::{SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
 use crate::types::{Pt2, Pt3, Ray, Scalar, Vec3};
-use cgmath::{point2, point3, vec3, EuclideanSpace, InnerSpace, Zero};
+use cgmath::{point2, point3, vec3, EuclideanSpace, InnerSpace, MetricSpace, Zero};
 
 pub struct Intersection<M> {
     pub distance: Scalar,
@@ -25,14 +26,38 @@ impl Intersection<()> {
         }
     }
 }
+impl<M> Intersection<M> {
+    pub fn map<T, F>(self, f: F) -> Intersection<T>
+    where
+        F: FnOnce(M) -> T,
+    {
+        let Intersection {
+            distance,
+            normal,
+            tangent,
+            point,
+            sampled_material,
+            uv,
+        } = self;
+        Intersection {
+            distance,
+            normal,
+            tangent,
+            point,
+            uv,
+            sampled_material: f(sampled_material),
+        }
+    }
+}
 
-pub enum PossibleIntersection<M> {
+pub enum PossibleIntersection<'a, M> {
     Hit(Intersection<M>),
+    HitLight(Intersection<&'a AreaLight>),
     Miss,
     Ignored,
 }
 
-impl<M> PossibleIntersection<M> {
+impl<'a, M> PossibleIntersection<'a, M> {
     pub fn is_miss(&self) -> bool {
         matches!(self, PossibleIntersection::Miss)
     }
@@ -43,6 +68,14 @@ impl<M> PossibleIntersection<M> {
 
     pub fn is_ignored(&self) -> bool {
         matches!(self, PossibleIntersection::Ignored)
+    }
+
+    pub fn unwrap_distance(&self) -> Scalar {
+        match self {
+            PossibleIntersection::HitLight(i) => i.distance,
+            PossibleIntersection::Hit(i) => i.distance,
+            _ => panic!("unwrap called on a miss or ignored intersection"),
+        }
     }
 
     pub fn unwrap(&self) -> &Intersection<M> {
@@ -125,7 +158,7 @@ impl Scene {
                 &object.material,
             ) {
                 PossibleIntersection::Hit(intersection) => {
-                    if nearest.is_miss() || intersection.distance < nearest.unwrap().distance {
+                    if nearest.is_miss() || intersection.distance < nearest.unwrap_distance() {
                         nearest = PossibleIntersection::Hit(intersection);
                     }
                 }
@@ -133,6 +166,26 @@ impl Scene {
                     return PossibleIntersection::Ignored;
                 }
                 PossibleIntersection::Miss => {}
+                PossibleIntersection::HitLight(_) => unreachable!(),
+            }
+        }
+        for light in &self.lights {
+            if let Light::Area(area) = light {
+                match area
+                    .shape
+                    .intersect(ray, area.position.to_vec(), &EmptyMaterial)
+                {
+                    PossibleIntersection::Hit(intersection) => {
+                        if nearest.is_miss() || intersection.distance < nearest.unwrap_distance() {
+                            nearest = PossibleIntersection::HitLight(intersection.map(|_| area));
+                        }
+                    }
+                    PossibleIntersection::Ignored => {
+                        return PossibleIntersection::Ignored;
+                    }
+                    PossibleIntersection::Miss => {}
+                    PossibleIntersection::HitLight(_) => unreachable!(),
+                }
             }
         }
         nearest

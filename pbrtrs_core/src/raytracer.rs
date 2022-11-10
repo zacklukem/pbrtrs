@@ -2,7 +2,7 @@ use crate::bxdf::BxDFKind;
 use crate::debugger;
 use crate::intersect::PossibleIntersection;
 use crate::light::hdri::Hdri;
-use crate::light::{estimate_direct, sample_one_light, LightTrait};
+use crate::light::{estimate_direct, sample_one_light, LightKind, LightTrait};
 use crate::material::{EmptyMaterial, Material, TransportMode};
 use crate::scene::{DisneyMaterial, Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
@@ -64,7 +64,8 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                     sampled_kind,
                     -ray.direction,
                     beta,
-                    radiance
+                    radiance,
+                    intersection.normal
                 }
 
                 if bounce_count > 3 && (1.0 - max_value3(beta).max(0.7)) < scalar::rand() {
@@ -74,6 +75,11 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
 
                 ray = Ray::new(intersection.point, wi, ray.time);
             }
+            PossibleIntersection::HitLight(intersection) => {
+                let area = intersection.sampled_material;
+                radiance.add_assign_element_wise(area.le(&ray).mul_element_wise(beta));
+                break;
+            }
             PossibleIntersection::Ignored => {
                 debugger::ray_print!("Ignored");
                 break;
@@ -82,8 +88,10 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                 if bounce_count == 0 || specular_bounce {
                     debugger::ray_print!("Sky Specular");
                     for light in &scene.lights {
-                        let light = light.le(&ray);
-                        radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                        if !light.kind().has(LightKind::AREA) {
+                            let light = light.le(&ray);
+                            radiance.add_assign_element_wise(light.mul_element_wise(beta));
+                        }
                     }
                 } else {
                     debugger::ray_print!("Sky Ignored");

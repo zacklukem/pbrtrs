@@ -1,3 +1,4 @@
+use crate::debugger;
 use crate::intersect::Intersection;
 use crate::light::{LightKind, LightTrait};
 use crate::types::color::BLACK;
@@ -156,7 +157,7 @@ impl Hdri {
 
 impl LightTrait for Hdri {
     fn kind(&self) -> LightKind {
-        LightKind::DELTA_DIRECTION.set(LightKind::INFINITE)
+        LightKind::INFINITE
     }
 
     fn le(&self, ray: &Ray) -> Color {
@@ -182,8 +183,8 @@ impl LightTrait for Hdri {
             return BLACK;
         }
 
-        let theta = u.x * PI;
-        let phi = u.y * 2.0 * PI;
+        let phi = uv.x * 2.0 * PI - PI;
+        let theta = uv.y * PI;
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();

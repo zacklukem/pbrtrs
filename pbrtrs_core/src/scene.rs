@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::bxdf::TransmissionSpecular;
 use crate::light::hdri::Hdri;
-use crate::light::{DirectionLight, Light, PointLight};
+use crate::light::{AreaLight, DirectionLight, Light, PointLight};
 use crate::types::R8G8B8Color;
 use serde::de::{Error as SerdeError, SeqAccess, Visitor};
 use serde::{Deserialize as DeserializeTrait, Deserialize, Deserializer};
@@ -290,9 +290,23 @@ pub struct Scene {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind")]
 enum LightSerialStructure {
-    Point { position: Pt3, color: Color },
-    Direction { direction: Vec3, color: Color },
-    Hdri { path: String, strength: Scalar },
+    Point {
+        position: Pt3,
+        color: Color,
+    },
+    Direction {
+        direction: Vec3,
+        color: Color,
+    },
+    Hdri {
+        path: String,
+        strength: Scalar,
+    },
+    Area {
+        position: Pt3,
+        shape: Shape,
+        color: Color,
+    },
 }
 
 impl<'de> DeserializeTrait<'de> for Light {
@@ -316,6 +330,15 @@ impl<'de> DeserializeTrait<'de> for Light {
             LightSerialStructure::Hdri { path, strength } => {
                 Ok(Light::Hdri(Hdri::from_path(path, strength)))
             }
+            LightSerialStructure::Area {
+                position,
+                shape,
+                color: radiance,
+            } => Ok(Light::Area(AreaLight {
+                position,
+                shape,
+                radiance,
+            })),
         }
     }
 }

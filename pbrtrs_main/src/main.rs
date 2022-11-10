@@ -33,7 +33,7 @@ use tev_client::{PacketCreateImage, PacketUpdateImage, TevClient};
 use pbrtrs_core::debugger::debug_info;
 
 #[cfg(feature = "enable_debugger")]
-const DEBUG_PIXEL: (usize, usize) = (175, 153);
+const DEBUG_PIXEL: (usize, usize) = (70, 206);
 
 fn main() {
     // Deterministic rendering
@@ -242,7 +242,7 @@ fn main() {
 
     output_image
         .par_iter_mut()
-        .for_each(|pixel| *pixel = (*pixel + 1.0).log2() * scene.camera.ldr_scale);
+        .for_each(|pixel| *pixel = scene.camera.ldr_scale);
 
     let output_image = DynamicImage::from(output_image);
     let output_image = output_image.into_rgb8();

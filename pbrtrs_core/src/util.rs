@@ -1,6 +1,6 @@
 use crate::types::scalar::consts::{FRAC_PI_2, FRAC_PI_4};
 use crate::types::{scalar, Pt2, Pt3, Scalar, Vec3};
-use cgmath::{point2, vec3, EuclideanSpace, InnerSpace};
+use cgmath::{point2, vec2, vec3, EuclideanSpace, InnerSpace};
 
 pub fn max_value3(v: Pt3) -> Scalar {
     if v[0] > v[1] && v[0] > v[2] {
@@ -40,7 +40,7 @@ pub fn random_concentric_disk() -> Pt2 {
         let (theta, r) = if u.x.abs() > u.y.abs() {
             (FRAC_PI_4 * (u.y / u.x), u.x)
         } else {
-            (FRAC_PI_2 - FRAC_PI_4 * (u.x / u.y), u.x)
+            (FRAC_PI_2 - FRAC_PI_4 * (u.x / u.y), u.y)
         };
         r * point2(theta.cos(), theta.sin())
     }
