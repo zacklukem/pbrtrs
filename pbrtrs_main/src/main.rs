@@ -39,9 +39,18 @@ fn main() {
     // Deterministic rendering
     fastrand::seed(0x8815_6e97_8ca3_1877);
 
-    let tev_path = std::env::var("TEV_PATH").expect("TEV_PATH not set");
+    let tev_path = std::env::var("TEV_PATH").ok();
 
-    let mut tev_client = TevClient::spawn(Command::new(tev_path)).unwrap();
+    let mut tev_client = if let Some(tev_path) = tev_path {
+        println!("{tev_path}");
+        if tev_path.is_empty() {
+            None
+        } else {
+            Some(TevClient::spawn(Command::new(tev_path)).unwrap())
+        }
+    } else {
+        None
+    };
 
     println!("Loading scene...");
     let scene_path = std::env::args().nth(1).expect("Usage: pbrtrs <scene_path>");
@@ -51,15 +60,17 @@ fn main() {
     let image_width = scene.camera.width;
     let image_height = scene.camera.height;
 
-    tev_client
-        .send(PacketCreateImage {
-            image_name: "out",
-            grab_focus: false,
-            width: image_width as u32,
-            height: image_height as u32,
-            channel_names: &["R", "G", "B"],
-        })
-        .unwrap();
+    if let Some(tev_client) = &mut tev_client {
+        tev_client
+            .send(PacketCreateImage {
+                image_name: "out",
+                grab_focus: false,
+                width: image_width as u32,
+                height: image_height as u32,
+                channel_names: &["R", "G", "B"],
+            })
+            .unwrap();
+    }
 
     let aspect_ratio = image_width as Scalar / image_height as Scalar;
     let mut image_tile_generator = ImageTileGenerator::new(image_width, image_height);
@@ -174,20 +185,22 @@ fn main() {
 
     macro_rules! update_image {
         () => {
-            tev_client
-                .send(PacketUpdateImage {
-                    image_name: "out",
-                    grab_focus: false,
-                    channel_names: &["R", "G", "B"],
-                    channel_offsets: &[0, 1, 2],
-                    channel_strides: &[3, 3, 3],
-                    x: 0,
-                    y: 0,
-                    width: image_width as u32,
-                    height: image_height as u32,
-                    data: &output_image,
-                })
-                .unwrap()
+            if let Some(tev_client) = &mut tev_client {
+                tev_client
+                    .send(PacketUpdateImage {
+                        image_name: "out",
+                        grab_focus: false,
+                        channel_names: &["R", "G", "B"],
+                        channel_offsets: &[0, 1, 2],
+                        channel_strides: &[3, 3, 3],
+                        x: 0,
+                        y: 0,
+                        width: image_width as u32,
+                        height: image_height as u32,
+                        data: &output_image,
+                    })
+                    .unwrap()
+            }
         };
     }
 
@@ -240,15 +253,6 @@ fn main() {
     }
 
     output_image.save("./out.exr").unwrap();
-
-    output_image
-        .par_iter_mut()
-        .for_each(|pixel| *pixel *= scene.camera.ldr_scale);
-
-    let output_image = DynamicImage::from(output_image);
-    let output_image = output_image.into_rgb8();
-
-    output_image.save("./out.png").unwrap();
 }
 
 #[repr(transparent)]

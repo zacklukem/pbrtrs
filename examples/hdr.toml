@@ -17,23 +17,6 @@ kind = "Hdri"
 path = "./pizzo_pernice_1k.exr"
 strength = 1.0
 
-#[[lights]]
-#kind = "Direction"
-#direction = [-0.3, -1.0, -1.0]
-#color = [10.0, 10.0, 10.0]
-
-#[[lights]]
-#kind = "Area"
-#position = [0.0, 4.0, 0.0]
-#shape = { kind = "Sphere", radius = 1.0 }
-#color = [1.0, 1.0, 1.0]
-
-#[[lights]]
-#kind = "Area"
-#position = [8.0, 1.0, 0.0]
-#shape = { kind = "Sphere", radius = 1.0 }
-#color = [2.0, 1.0, 1.0]
-
 # Small shiny non-metallic sphere far
 [[objects]]
 shape = { kind = "Sphere", radius = 0.3 }

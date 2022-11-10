@@ -6,7 +6,8 @@ by Matt Pharr, Wenzel Jakob, and Greg Humphreys
 
 ## Examples
 
-![Example rendered output](./out.png)
+![Example rendered output](./examples/area.png)
+![Example rendered output](./examples/hdr.png)
 
 ## Building
 
