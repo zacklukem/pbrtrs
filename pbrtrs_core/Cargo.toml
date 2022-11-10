@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 enable_axis = []
 enable_debugger = []
+enable_oidn = ["oidn"]
 
 [dependencies]
 cgmath = { version = "0.18", features = ["serde", "swizzle"] }
@@ -16,6 +17,7 @@ toml = "0.5"
 fastrand = "1.8"
 smallvec = "1.10"
 bumpalo = "3.11"
+oidn = { version = "1.4.2", optional = true }
 
 [dev-dependencies]
 criterion = "0.4"

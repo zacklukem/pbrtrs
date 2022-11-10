@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 enable_axis = ["pbrtrs_core/enable_axis"]
 enable_debugger = ["pbrtrs_core/enable_debugger"]
+enable_oidn = ["pbrtrs_core/enable_oidn"]
 
 [dependencies]
 pbrtrs_core = { path = "../pbrtrs_core" }
@@ -15,3 +16,4 @@ threadpool = "1.8"
 fastrand = "1.8"
 tev_client = "0.5.2"
 bumpalo = "3.11"
+rayon = "1.5"

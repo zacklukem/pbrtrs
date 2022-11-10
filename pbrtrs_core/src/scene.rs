@@ -225,6 +225,7 @@ struct CameraRaw {
     pub exposure_time: Scalar,
     pub aperture: Scalar,
     pub focus_distance: Scalar,
+    pub ldr_scale: Scalar,
 
     pub bounce_limit: usize,
     pub num_samples: usize,
@@ -240,6 +241,7 @@ pub struct Camera {
     pub exposure_time: Scalar,
     pub aperture: Scalar,
     pub focus_distance: Scalar,
+    pub ldr_scale: Scalar,
 
     pub bounce_limit: usize,
     pub num_samples: usize,
@@ -256,6 +258,7 @@ impl<'de> DeserializeTrait<'de> for Camera {
             exposure_time,
             aperture,
             focus_distance,
+            ldr_scale,
             bounce_limit,
             num_samples,
             width,
@@ -268,6 +271,7 @@ impl<'de> DeserializeTrait<'de> for Camera {
             exposure_time,
             aperture,
             focus_distance,
+            ldr_scale,
             bounce_limit,
             num_samples,
             width,

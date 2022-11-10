@@ -5,9 +5,10 @@ sensor_distance = 0.9
 exposure_time = 0.2
 aperture = 0.1
 focus_distance = 6.08
+ldr_scale = 0.7
 
 bounce_limit = 10
-num_samples = 80000
+num_samples = 1000
 width = 512
 height = 400
 

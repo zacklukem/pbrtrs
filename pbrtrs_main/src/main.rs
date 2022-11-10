@@ -4,22 +4,24 @@ extern crate core;
 extern crate fastrand;
 extern crate image;
 extern crate pbrtrs_core;
+extern crate rayon;
 extern crate tev_client;
 extern crate threadpool;
 
 mod image_tiler;
 
-use pbrtrs_core::debugger;
 use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
+use pbrtrs_core::{debugger, postprocess};
 use std::fmt::{Display, Formatter};
 
 use bumpalo::Bump;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
-use image::{Rgb, Rgb32FImage};
+use image::{DynamicImage, Rgb, Rgb32FImage};
 use image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::raytracer::ray_color;
 use pbrtrs_core::scene::load_scene;
 use pbrtrs_core::util::random_concentric_disk;
+use rayon::prelude::*;
 use std::num::NonZeroUsize;
 use std::process::Command;
 use std::sync::{mpsc, Arc};
@@ -218,9 +220,17 @@ fn main() {
         }
     }
 
-    update_image!();
-
     pool_ender_thread.join().unwrap();
+
+    #[cfg(feature = "enable_oidn")]
+    {
+        println!("Denoising");
+        let time = Instant::now();
+        postprocess::denoise(&mut output_image);
+        println!("Time to denoise: {}", HMSDuration(time.elapsed()));
+    }
+
+    update_image!();
 
     #[cfg(feature = "enable_debugger")]
     {
@@ -229,6 +239,15 @@ fn main() {
     }
 
     output_image.save("./out.exr").unwrap();
+
+    output_image
+        .par_iter_mut()
+        .for_each(|pixel| *pixel = (*pixel + 1.0).log2() * scene.camera.ldr_scale);
+
+    let output_image = DynamicImage::from(output_image);
+    let output_image = output_image.into_rgb8();
+
+    output_image.save("./out.png").unwrap();
 }
 
 #[repr(transparent)]
