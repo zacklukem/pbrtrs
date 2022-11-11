@@ -88,7 +88,8 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                 if bounce_count == 0 || specular_bounce {
                     debugger::ray_print!("Sky Specular");
                     for light in &scene.lights {
-                        if !light.kind().has(LightKind::AREA) {
+                        if !light.kind().has(LightKind::AREA) && !light.kind().has(LightKind::NO_BG)
+                        {
                             let light = light.le(&ray);
                             radiance.add_assign_element_wise(light.mul_element_wise(beta));
                         }

@@ -1,0 +1,180 @@
+[camera]
+position = [0.0, 2.0, -6.0]
+direction = [0.0, -1.0, 6.0]
+sensor_distance = 0.9
+exposure_time = 0.0
+aperture = 0.0
+focus_distance = 5.4
+ldr_scale = 1.0
+
+bounce_limit = 10
+num_samples = 1000
+width = 512
+height = 400
+
+[[lights]]
+kind = "Ambient"
+color = [0.005, 0.005, 0.005]
+
+[[lights]]
+kind = "Spot"
+position = [0.0, 4.0, 0.0]
+color = [13.0, 13.0, 13.0]
+direction = [0.0, -1.0, 0.0]
+angle = 45.0
+falloff = 40.0
+
+[[lights]]
+kind = "Spot"
+position = [-4.0, 4.0, 0.0]
+color = [20.0, 10.0, 10.0]
+direction = [0.0, -1.0, 0.0]
+angle = 45.0
+falloff = 40.0
+
+[[lights]]
+kind = "Spot"
+position = [2.0, 4.0, 0.0]
+color = [10.0, 10.0, 20.0]
+direction = [2.0, -4.0, 0.0]
+angle = 20.0
+falloff = 18.0
+
+# Small shiny non-metallic sphere far
+[[objects]]
+shape = { kind = "Sphere", radius = 0.3 }
+position = [-0.5, 1.0, -5.0]
+
+[objects.material]
+base_color = [0.8, 1.0, 0.8]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.4
+specular_tint = 0.0
+roughness = 0.3
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
+
+[[objects]]
+shape = { kind = "Sphere", radius = 1.0 }
+position = [0.0, 1.0, 0.0]
+
+[objects.material]
+base_color = [1.0, 1.0, 1.0]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.2
+specular_tint = 0.0
+roughness = 0.0
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 1.0
+ior = 1.5
+
+# roughish non-metallic sphere
+[[objects]]
+shape = { kind = "Sphere", radius = 1.0 }
+position = [-4.0, 1.0, 0.0]
+
+[objects.material]
+base_color = [0.8, 0.5, 1.0]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.4
+specular_tint = 0.0
+roughness = 0.4
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
+
+# Metallic sphere
+[[objects]]
+shape = { kind = "Sphere", radius = 1.0 }
+position = [-2.0, 1.0, 0.0]
+
+[objects.material]
+base_color = [1.0, 0.7, 0.3]
+subsurface = 0.0
+metallic = 1.0
+specular = 0.2
+specular_tint = 0.0
+roughness = 0.0
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
+
+# rough sphere
+[[objects]]
+shape = { kind = "Sphere", radius = 1.0 }
+position = [2.0, 1.0, 0.0]
+
+[objects.material]
+base_color = [0.3, 1.0, 0.8]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.4
+specular_tint = 0.0
+roughness = 0.8
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
+
+# texture sphere
+[[objects]]
+shape = { kind = "Sphere", radius = 1.0 }
+position = [4.0, 1.0, 0.0]
+
+[objects.material]
+base_color = "./Marble13/Marble13_COL_3K.jpg"
+subsurface = 0.0
+metallic = 0.0
+specular = 0.0
+specular_tint = 0.0
+roughness = 0.0
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5
+
+# Big Sphere
+[[objects]]
+shape = { kind = "Sphere", radius = 10000.0 }
+position = [0.0, -10000.0, 0.0]
+
+[objects.material]
+base_color = [0.6, 0.6, 0.6]
+subsurface = 0.0
+metallic = 0.0
+specular = 0.0
+specular_tint = 0.0
+roughness = 1.0
+anisotropic = 0.0
+sheen = 0.0
+sheen_tint = 0.0
+clearcoat = 0.0
+clearcoat_gloss = 0.0
+transmission = 0.0
+ior = 1.5

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bxdf::TransmissionSpecular;
 use crate::light::hdri::Hdri;
-use crate::light::{AreaLight, DirectionLight, Light, PointLight};
+use crate::light::{AmbientLight, AreaLight, DirectionLight, Light, PointLight, SpotLight};
 use crate::types::R8G8B8Color;
 use serde::de::{Error as SerdeError, SeqAccess, Visitor};
 use serde::{Deserialize as DeserializeTrait, Deserialize, Deserializer};
@@ -301,6 +301,13 @@ enum LightSerialStructure {
         position: Pt3,
         color: Color,
     },
+    Spot {
+        position: Pt3,
+        direction: Vec3,
+        angle: Scalar,
+        falloff: Scalar,
+        color: Color,
+    },
     Direction {
         direction: Vec3,
         color: Color,
@@ -312,6 +319,9 @@ enum LightSerialStructure {
     Area {
         position: Pt3,
         shape: Shape,
+        color: Color,
+    },
+    Ambient {
         color: Color,
     },
 }
@@ -327,6 +337,19 @@ impl<'de> DeserializeTrait<'de> for Light {
                 position,
                 color: radiance,
             } => Ok(Light::Point(PointLight { position, radiance })),
+            LightSerialStructure::Spot {
+                position,
+                direction,
+                angle,
+                falloff,
+                color: radiance,
+            } => Ok(Light::Spot(SpotLight {
+                position,
+                radiance,
+                cos_angle: angle.to_radians().cos(),
+                cos_falloff: falloff.to_radians().cos(),
+                direction: direction.normalize(),
+            })),
             LightSerialStructure::Direction {
                 direction,
                 color: radiance,
@@ -347,6 +370,9 @@ impl<'de> DeserializeTrait<'de> for Light {
                 shape,
                 radiance,
             })),
+            LightSerialStructure::Ambient { color: radiance } => {
+                Ok(Light::Ambient(AmbientLight { radiance }))
+            }
         }
     }
 }

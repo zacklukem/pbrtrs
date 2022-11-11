@@ -5,8 +5,9 @@ use crate::light::hdri::Hdri;
 use crate::material::{Material, TransportMode};
 use crate::scene::{Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
+use crate::types::scalar::consts::PI;
 use crate::types::{scalar, Color, Pt2, Pt3, Ray, Scalar, Vec3};
-use crate::util::bitfield_methods;
+use crate::util::{bitfield_methods, random_unit_vec};
 use bumpalo::Bump;
 use cgmath::{point3, vec3, ElementWise, InnerSpace, Zero};
 use std::fmt::{Debug, Formatter};
@@ -25,6 +26,7 @@ impl Debug for LightKind {
             ("DELTA_DIRECTION", Self::DELTA_DIRECTION),
             ("AREA", Self::AREA),
             ("INFINITE", Self::INFINITE),
+            ("NO_BG", Self::NO_BG),
         ];
         for (kind_str, kind) in kinds {
             if self.has(kind) {
@@ -40,6 +42,7 @@ impl LightKind {
     pub const DELTA_DIRECTION: LightKind = LightKind(1 << 1);
     pub const AREA: LightKind = LightKind(1 << 2);
     pub const INFINITE: LightKind = LightKind(1 << 3);
+    pub const NO_BG: LightKind = LightKind(1 << 4);
 }
 
 bitfield_methods!(LightKind);
@@ -103,6 +106,91 @@ impl LightTrait for PointLight {
 
     fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
         0.0
+    }
+}
+
+#[derive(Debug)]
+pub struct SpotLight {
+    pub position: Pt3,
+    pub direction: Vec3,
+    pub cos_angle: Scalar,
+    pub cos_falloff: Scalar,
+    pub radiance: Color,
+}
+
+impl SpotLight {
+    fn falloff(&self, cos_theta: Scalar) -> Scalar {
+        if cos_theta < self.cos_angle {
+            0.0
+        } else if cos_theta > self.cos_falloff {
+            1.0
+        } else {
+            let delta = (cos_theta - self.cos_angle) / (self.cos_falloff - self.cos_angle);
+            delta.powi(4)
+        }
+    }
+}
+
+impl LightTrait for SpotLight {
+    fn kind(&self) -> LightKind {
+        LightKind::DELTA_POSITION
+    }
+
+    fn le(&self, _wi: &Ray) -> Color {
+        BLACK
+    }
+
+    fn sample_li<M>(
+        &self,
+        intersection: &Intersection<M>,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+    ) -> Color {
+        let to_light = self.position - intersection.point;
+        let distance = to_light.magnitude();
+        *wi = to_light / distance;
+        let cos_wi_dir = (-*wi).dot(self.direction);
+        if cos_wi_dir < self.cos_angle {
+            *pdf = 0.0;
+            BLACK
+        } else {
+            *pdf = 1.0;
+            self.radiance * self.falloff(cos_wi_dir) / (distance + 1.0).powi(2)
+        }
+    }
+
+    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+        0.0
+    }
+}
+
+#[derive(Debug)]
+pub struct AmbientLight {
+    pub radiance: Color,
+}
+
+impl LightTrait for AmbientLight {
+    fn kind(&self) -> LightKind {
+        LightKind::INFINITE.set(LightKind::NO_BG)
+    }
+
+    fn le(&self, _wi: &Ray) -> Color {
+        self.radiance
+    }
+
+    fn sample_li<M>(
+        &self,
+        _intersection: &Intersection<M>,
+        wi: &mut Vec3,
+        pdf: &mut Scalar,
+    ) -> Color {
+        *wi = random_unit_vec();
+        *pdf = 1.0 / (4.0 * PI);
+        self.radiance
+    }
+
+    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+        1.0 / (4.0 * PI)
     }
 }
 
@@ -188,18 +276,22 @@ impl LightTrait for AreaLight {
 #[derive(Debug)]
 pub enum Light {
     Point(PointLight),
+    Spot(SpotLight),
     Direction(DirectionLight),
     Hdri(Hdri),
     Area(AreaLight),
+    Ambient(AmbientLight),
 }
 
 macro_rules! indirect_light_trait {
     ($self:expr, $fn_name:ident ( $($args: expr),* ) ) => {
         match $self {
             Light::Point(light) => light.$fn_name($($args),*),
+            Light::Spot(light) => light.$fn_name($($args),*),
             Light::Direction(light) => light.$fn_name($($args),*),
             Light::Hdri(light) => light.$fn_name($($args),*),
             Light::Area(light) => light.$fn_name($($args),*),
+            Light::Ambient(light) => light.$fn_name($($args),*),
         }
     };
 }
