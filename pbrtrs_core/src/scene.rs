@@ -1,5 +1,5 @@
 use crate::types::scalar::consts::PI;
-use crate::types::{color, Color, Euler, Mat4, Pt2, Pt3, Scalar, Vec3};
+use crate::types::{color, Color, Euler, Mat4, Pt2, Pt3, Quaternion, Scalar, Vec3};
 
 use cgmath::{vec3, EuclideanSpace, InnerSpace, Rad, Zero};
 use image::{ImageBuffer, Luma, Pixel, Rgb, Rgb32FImage};
@@ -202,12 +202,24 @@ impl Default for DisneyMaterial {
     }
 }
 
+pub fn deserialize_rotation<'de, D: Deserializer<'de>>(d: D) -> Result<Quaternion, D::Error> {
+    let angles = Vec3::deserialize(d)?;
+    let angles = angles.map(Scalar::to_radians).map(Rad);
+    let angles = Euler::new(angles.x, angles.y, angles.z);
+    Ok(Quaternion::from(angles))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Object {
     pub shape: Shape,
     pub position: Pt3,
     #[serde(default = "Vec3::zero")]
     pub motion: Vec3,
+    #[serde(
+        default = "Quaternion::zero",
+        deserialize_with = "deserialize_rotation"
+    )]
+    pub rotation: Quaternion,
     pub material: DisneyMaterial,
 }
 
@@ -215,6 +227,7 @@ pub struct Object {
 #[serde(tag = "kind")]
 pub enum Shape {
     Sphere { radius: Scalar },
+    Rectangle { width: Scalar, height: Scalar },
 }
 
 impl Hdri {
@@ -317,6 +330,11 @@ enum LightSerialStructure {
         strength: Scalar,
     },
     Area {
+        #[serde(
+            default = "Quaternion::zero",
+            deserialize_with = "deserialize_rotation"
+        )]
+        rotation: Quaternion,
         position: Pt3,
         shape: Shape,
         color: Color,
@@ -364,8 +382,10 @@ impl<'de> DeserializeTrait<'de> for Light {
             LightSerialStructure::Area {
                 position,
                 shape,
+                rotation,
                 color: radiance,
             } => Ok(Light::Area(AreaLight {
+                rotation,
                 position,
                 shape,
                 radiance,

@@ -1,9 +1,9 @@
 [camera]
-position = [0.0, 2.0, -6.0]
-direction = [0.0, -1.0, 6.0]
+position = [0.0, 8.0, 0.1]
+direction = [0.0, -8.0, -0.1]
 sensor_distance = 0.9
 exposure_time = 0.2
-aperture = 0.1
+aperture = 0.0
 focus_distance = 6.08
 ldr_scale = 1.0
 
@@ -121,6 +121,7 @@ ior = 1.5
 [[objects]]
 shape = { kind = "Sphere", radius = 1.0 }
 position = [4.0, 1.0, 0.0]
+rotation = [90, 0, 0]
 
 [objects.material]
 base_color = "./Marble13/Marble13_COL_3K.jpg"
@@ -139,8 +140,9 @@ ior = 1.5
 
 # Big Sphere
 [[objects]]
-shape = { kind = "Sphere", radius = 10000.0 }
-position = [0.0, -10000.0, 0.0]
+shape = { kind = "Rectangle", width = 20.0, height = 8.0 }
+position = [0.0, 0.1, 0.0]
+rotation = [90.0, 0.0, 0.0]
 
 [objects.material]
 base_color = [0.6, 0.6, 0.6]

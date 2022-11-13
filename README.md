@@ -8,6 +8,7 @@ by Matt Pharr, Wenzel Jakob, and Greg Humphreys
 
 ![Example rendered output](./examples/area.png)
 ![Example rendered output](./examples/hdr.png)
+![Example rendered output](./examples/spot.png)
 
 ## Building
 

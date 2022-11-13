@@ -2,8 +2,10 @@ use crate::light::{AreaLight, Light};
 use crate::material::{EmptyMaterial, Material};
 use crate::scene::{SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
-use crate::types::{Pt2, Pt3, Ray, Scalar, Vec3};
-use cgmath::{point2, point3, vec3, EuclideanSpace, InnerSpace, MetricSpace, Zero};
+use crate::types::{Mat4, Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
+use cgmath::{
+    point2, point3, vec3, EuclideanSpace, InnerSpace, MetricSpace, Rotation, Transform, Zero,
+};
 
 pub struct Intersection<M> {
     pub distance: Scalar,
@@ -97,9 +99,11 @@ impl Shape {
     pub fn intersect<'mat, M: Material>(
         &self,
         ray: &Ray,
+        rotate: Quaternion,
         translate: Vec3,
         material: &'mat M,
     ) -> PossibleIntersection<M::Sampled> {
+        const T_MIN: Scalar = 0.001;
         match self {
             Self::Sphere { radius } => {
                 let sphere_center: Pt3 = Pt3::from_vec(translate);
@@ -115,15 +119,12 @@ impl Shape {
                     let t = (-h - discriminant.sqrt()) / a;
                     if t < 0.0 {
                         PossibleIntersection::Miss
-                    } else if t < 0.001 {
+                    } else if t < T_MIN {
                         PossibleIntersection::Ignored
                     } else {
                         let point = ray.at(t);
 
                         let normal = (point - sphere_center).normalize();
-
-                        let theta = normal.angle(vec3(0.0, 1.0, 0.0)).0;
-                        let phi = normal.x.atan2(normal.z);
 
                         let tangent = if normal.z.abs() <= 1e-6 && normal.x.abs() <= 1e-6 {
                             vec3(1.0, 0.0, 0.0)
@@ -131,7 +132,57 @@ impl Shape {
                             vec3(normal.z, 0.0, -normal.x).normalize()
                         };
 
+                        // Compute UV
+                        let rnormal = rotate.rotate_vector(normal);
+
+                        let theta = rnormal.angle(vec3(0.0, 1.0, 0.0)).0;
+                        let phi = rnormal.x.atan2(rnormal.z);
+
                         let uv = point2(theta / PI, (phi + PI) / (2.0 * PI));
+
+                        PossibleIntersection::Hit(Intersection {
+                            distance: t,
+                            point,
+                            normal,
+                            tangent,
+                            sampled_material: material.sample(uv),
+                            uv,
+                        })
+                    }
+                }
+            }
+            Self::Rectangle { width, height } => {
+                let o = rotate.rotate_point(ray.origin - translate);
+                let l = rotate.rotate_point(ray.origin + ray.direction);
+                let ray = Ray::new(o, l - o, ray.time);
+
+                let t = ray.origin.z / -ray.direction.z;
+
+                if t < 0.0 {
+                    PossibleIntersection::Miss
+                } else if t < T_MIN {
+                    PossibleIntersection::Ignored
+                } else {
+                    let x0 = -width / 2.0;
+                    let x1 = width / 2.0;
+                    let y0 = -height / 2.0;
+                    let y1 = height / 2.0;
+
+                    let x = ray.origin.x + t * ray.direction.x;
+                    let y = ray.origin.y + t * ray.direction.y;
+
+                    if x < x0 || x > x1 || y < y0 || y > y1 {
+                        PossibleIntersection::Miss
+                    } else {
+                        let point = ray.at(t);
+
+                        let normal = vec3(0.0, 1.0, 0.0);
+                        let tangent = vec3(0.0, 0.0, 1.0);
+
+                        // let normal = rotate.rotate_vector(normal);
+                        // let tangent = rotate.rotate_vector(tangent);
+
+                        let uv = point2((x - x0) / width, (y - y0) / height);
 
                         PossibleIntersection::Hit(Intersection {
                             distance: t,
@@ -154,6 +205,7 @@ impl Scene {
         for object in &self.objects {
             match object.shape.intersect(
                 ray,
+                object.rotation,
                 object.position.to_vec() + object.motion * ray.time,
                 &object.material,
             ) {
@@ -171,10 +223,12 @@ impl Scene {
         }
         for light in &self.lights {
             if let Light::Area(area) = light {
-                match area
-                    .shape
-                    .intersect(ray, area.position.to_vec(), &EmptyMaterial)
-                {
+                match area.shape.intersect(
+                    ray,
+                    area.rotation,
+                    area.position.to_vec(),
+                    &EmptyMaterial,
+                ) {
                     PossibleIntersection::Hit(intersection) => {
                         if nearest.is_miss() || intersection.distance < nearest.unwrap_distance() {
                             nearest = PossibleIntersection::HitLight(intersection.map(|_| area));
@@ -192,7 +246,7 @@ impl Scene {
     }
 }
 
-#[cfg(test)]
+#[cfg(fixme)]
 mod tests {
     use super::*;
     use crate::material::EmptyMaterial;

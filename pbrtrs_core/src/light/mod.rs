@@ -6,7 +6,7 @@ use crate::material::{Material, TransportMode};
 use crate::scene::{Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
 use crate::types::scalar::consts::PI;
-use crate::types::{scalar, Color, Pt2, Pt3, Ray, Scalar, Vec3};
+use crate::types::{scalar, Color, Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
 use crate::util::{bitfield_methods, random_unit_vec};
 use bumpalo::Bump;
 use cgmath::{point3, vec3, ElementWise, InnerSpace, Zero};
@@ -227,6 +227,7 @@ impl LightTrait for DirectionLight {
 
 #[derive(Debug)]
 pub struct AreaLight {
+    pub rotation: Quaternion,
     pub position: Pt3,
     pub shape: Shape,
     pub radiance: Color,
@@ -367,7 +368,6 @@ pub fn estimate_direct<M>(
     if light_pdf > 0.0 && li != BLACK {
         // TODO: handle medium interactions
 
-        // if wi.dot(intersection.normal) > 0.0 {
         let inter_to_light = Ray::new(intersection.point, wi, ray.time);
         if scene.intersect(&inter_to_light).is_miss() {
             let f = bsdf.f(-ray.direction, wi, bxdf_kind);
@@ -395,7 +395,6 @@ pub fn estimate_direct<M>(
                     }
                 }
             }
-            // }
         }
     }
 
@@ -425,7 +424,6 @@ pub fn estimate_direct<M>(
                 power_heuristic(1.0, scattering_pdf, 1.0, light_pdf)
             };
 
-            // if wi.dot(intersection.normal) > 0.0 {
             let ray = Ray::new(intersection.point, wi, ray.time);
 
             if scene.intersect(&ray).is_miss() {
@@ -443,7 +441,6 @@ pub fn estimate_direct<M>(
                     }
                 }
             }
-            // }
         }
     }
 
