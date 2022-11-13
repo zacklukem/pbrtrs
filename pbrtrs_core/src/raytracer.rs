@@ -6,7 +6,7 @@ use crate::light::{estimate_direct, sample_one_light, LightKind, LightTrait};
 use crate::material::{EmptyMaterial, Material, TransportMode};
 use crate::scene::{DisneyMaterial, Scene, Shape};
 use crate::types::color::{BLACK, WHITE};
-use crate::types::{color, scalar, Scalar, Vec3};
+use crate::types::{color, scalar, Pt3, Scalar, Vec3};
 use crate::types::{Color, Ray};
 use crate::util::max_value3;
 use bumpalo::Bump;
@@ -18,7 +18,7 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
     let mut ray = *ray;
     let mut specular_bounce = false;
     for bounce_count in 0..scene.camera.bounce_limit {
-        debugger::begin_ray!();
+        debugger::begin_ray!(ray);
         match scene.intersect(&ray) {
             PossibleIntersection::Hit(intersection) => {
                 let bsdf = DisneyMaterial::compute_scattering(

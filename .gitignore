@@ -1,6 +1,6 @@
 /target
 *.iml
 /.idea
-debug_out.txt
+debug_out.xml
 out.exr
 out.png

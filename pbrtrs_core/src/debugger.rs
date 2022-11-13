@@ -1,7 +1,7 @@
 #[cfg(feature = "enable_debugger")]
 pub mod inner {
     use crate::types::color::BLACK;
-    use crate::types::{color, Color};
+    use crate::types::{color, Color, Ray};
     use std::cell::RefCell;
     use std::fmt::{Arguments, Write};
     use std::io::{Result as IoResult, Write as IoWrite};
@@ -14,9 +14,18 @@ pub mod inner {
         static ENABLE_DEBUG_PIXEL: RefCell<bool> = RefCell::new(false);
     }
 
-    #[derive(Default)]
     pub struct BounceInfo {
+        pub ray: Ray,
         pub debug_info: String,
+    }
+
+    impl BounceInfo {
+        pub fn new(ray: Ray) -> Self {
+            Self {
+                ray,
+                debug_info: String::new(),
+            }
+        }
     }
 
     pub struct SampleInfo {
@@ -40,19 +49,22 @@ pub mod inner {
         pub fn save(&self, path: impl AsRef<Path>) {
             let mut f = std::fs::File::create(path).unwrap();
 
-            writeln!(f, "Final color: {:?}", self.final_color).unwrap();
+            writeln!(f, r#"<pixel color="{:?}">"#, self.final_color).unwrap();
             for (sample_number, sample) in self.samples.iter().enumerate() {
                 writeln!(
                     f,
-                    "Begin Sample {sample_number}, Color: {:?} ======================================",
+                    "\t<sample idx=\"{sample_number}\" color=\"{:?}\">",
                     sample.final_color
                 )
                 .unwrap();
 
                 for (bounce_number, bounce) in sample.bounces.iter().enumerate() {
-                    bounce.write(&mut f, bounce_number, 1).unwrap();
+                    bounce.write(&mut f, bounce_number, 2).unwrap();
                 }
+
+                writeln!(f, "\t</sample>").unwrap();
             }
+            writeln!(f, r#"</pixel>"#).unwrap();
         }
     }
 
@@ -64,7 +76,7 @@ pub mod inner {
             indent_len: usize,
         ) -> IoResult<()> {
             let mut indent = String::from_iter((0..indent_len).map(|_| '\t'));
-            writeln!(f, "{indent}ray {}: {{", bounce_number)?;
+            writeln!(f, "{indent}<ray idx=\"{}\">", bounce_number)?;
             indent += "\t";
             if self.debug_info.len() < 10 && !self.debug_info.contains('\n') {
                 writeln!(f, "{indent}{}", self.debug_info)?;
@@ -74,7 +86,7 @@ pub mod inner {
                 }
             }
             indent.pop();
-            writeln!(f, "{indent}}}")?;
+            writeln!(f, "{indent}</ray>")?;
             Ok(())
         }
     }
@@ -85,7 +97,7 @@ pub mod inner {
     }
 
     #[inline]
-    pub fn begin_ray() {
+    pub fn begin_ray(ray: Ray) {
         if is_pixel_debug() {
             let mut debug = DEBUG_INFO.lock().unwrap();
             debug
@@ -93,7 +105,7 @@ pub mod inner {
                 .last_mut()
                 .expect("not in a sample")
                 .bounces
-                .push(Default::default());
+                .push(BounceInfo::new(ray));
         }
     }
 
@@ -204,9 +216,9 @@ pub use ray_debug;
 
 #[macro_export]
 macro_rules! begin_ray {
-    () => {
+    ($ray: expr) => {
         #[cfg(feature = "enable_debugger")]
-        $crate::debugger::inner::begin_ray();
+        $crate::debugger::inner::begin_ray($ray);
     };
 }
 

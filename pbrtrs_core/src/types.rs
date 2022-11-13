@@ -1,6 +1,8 @@
 #![allow(unused)]
 
-use cgmath::{InnerSpace, Matrix2, Matrix3, Matrix4, Point2, Point3, Vector2, Vector3, Vector4};
+use cgmath::{
+    InnerSpace, Matrix2, Matrix3, Matrix4, Point2, Point3, Rad, Vector2, Vector3, Vector4,
+};
 use image::{Luma, LumaA, Pixel, Rgb, Rgba};
 use std::ops::Index;
 
@@ -30,7 +32,7 @@ pub type Pt2 = Point2<Scalar>;
 pub type Pt3 = Point3<Scalar>;
 
 pub type Quaternion = cgmath::Quaternion<Scalar>;
-pub type Euler = cgmath::Euler<Scalar>;
+pub type Euler = cgmath::Euler<Rad<Scalar>>;
 
 pub type Color = Pt3;
 
@@ -48,6 +50,9 @@ pub mod color {
     pub const RED: Color = color(1.0, 0.0, 0.0);
     pub const GREEN: Color = color(0.0, 1.0, 0.0);
     pub const BLUE: Color = color(0.0, 0.0, 1.0);
+    pub const CYAN: Color = color(0.0, 1.0, 1.0);
+    pub const MAGENTA: Color = color(1.0, 0.0, 1.0);
+    pub const YELLOW: Color = color(1.0, 1.0, 0.0);
 
     pub fn mix(a: Color, b: Color, value: Scalar) -> Color {
         let value = value.clamp(0.0, 1.0);
