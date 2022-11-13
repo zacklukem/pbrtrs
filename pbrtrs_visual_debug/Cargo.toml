@@ -1,0 +1,10 @@
+[package]
+name = "pbrtrs_visual_debug"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pbrtrs_core = { path = "../pbrtrs_core" }
+xml-rs = "0.8"
+cgmath = { version = "0.18", features = ["serde", "swizzle"] }
+kiss3d = "0.35"

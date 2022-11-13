@@ -1,5 +1,5 @@
 [workspace]
-members = ["pbrtrs_core", "pbrtrs_main"]
+members = ["pbrtrs_core", "pbrtrs_main", "pbrtrs_visual_debug"]
 resolver = "2"
 
 [profile.release]

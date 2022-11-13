@@ -249,7 +249,7 @@ fn main() {
     #[cfg(feature = "enable_debugger")]
     {
         let debug = debug_info().lock().unwrap();
-        debug.save("debug_out.xml");
+        debug.save(&scene, "debug_out.xml", DEBUG_PIXEL);
     }
 
     output_image.save("./out.exr").unwrap();

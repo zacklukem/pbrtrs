@@ -1,5 +1,6 @@
 #[cfg(feature = "enable_debugger")]
 pub mod inner {
+    use crate::scene::Scene;
     use crate::types::color::BLACK;
     use crate::types::{color, Color, Ray};
     use std::cell::RefCell;
@@ -46,10 +47,34 @@ pub mod inner {
             }
         }
 
-        pub fn save(&self, path: impl AsRef<Path>) {
+        pub fn save(&self, scene: &Scene, path: impl AsRef<Path>, (x, y): (usize, usize)) {
             let mut f = std::fs::File::create(path).unwrap();
 
-            writeln!(f, r#"<pixel color="{:?}">"#, self.final_color).unwrap();
+            writeln!(f, "<xml>").unwrap();
+            writeln!(f, "<camera>").unwrap();
+
+            #[rustfmt::skip]
+            {
+                writeln!(f, "\t<position  value=\"{:?}\" />", scene.camera.position).unwrap();
+                writeln!(f, "\t<direction value=\"{:?}\" />", scene.camera.direction).unwrap();
+                writeln!(f, "\t<sensor_distance value=\"{}\" />", scene.camera.sensor_distance).unwrap();
+                writeln!(f, "\t<exposure_time value=\"{}\" />", scene.camera.exposure_time).unwrap();
+                writeln!(f, "\t<aperture value=\"{}\" />", scene.camera.aperture).unwrap();
+                writeln!(f, "\t<focus_distance value=\"{}\" />", scene.camera.focus_distance).unwrap();
+                writeln!(f, "\t<ldr_scale value=\"{}\" />", scene.camera.ldr_scale).unwrap();
+                writeln!(f, "\t<bounce_limit value=\"{}\" />", scene.camera.bounce_limit).unwrap();
+                writeln!(f, "\t<num_samples value=\"{}\" />", scene.camera.num_samples).unwrap();
+                writeln!(f, "\t<width value=\"{}\" />", scene.camera.width).unwrap();
+                writeln!(f, "\t<height value=\"{}\" />", scene.camera.height).unwrap();
+            };
+
+            writeln!(f, "</camera>").unwrap();
+            writeln!(
+                f,
+                r#"<pixel color="{:?}" x="{x}" y="{y}">"#,
+                self.final_color,
+            )
+            .unwrap();
             for (sample_number, sample) in self.samples.iter().enumerate() {
                 writeln!(
                     f,
@@ -65,6 +90,7 @@ pub mod inner {
                 writeln!(f, "\t</sample>").unwrap();
             }
             writeln!(f, r#"</pixel>"#).unwrap();
+            writeln!(f, "<xml/>").unwrap();
         }
     }
 
@@ -76,7 +102,11 @@ pub mod inner {
             indent_len: usize,
         ) -> IoResult<()> {
             let mut indent = String::from_iter((0..indent_len).map(|_| '\t'));
-            writeln!(f, "{indent}<ray idx=\"{}\">", bounce_number)?;
+            writeln!(
+                f,
+                "{indent}<ray idx=\"{}\" origin=\"{:?}\" direction=\"{:?}\">",
+                bounce_number, self.ray.origin, self.ray.direction
+            )?;
             indent += "\t";
             if self.debug_info.len() < 10 && !self.debug_info.contains('\n') {
                 writeln!(f, "{indent}{}", self.debug_info)?;
