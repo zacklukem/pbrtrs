@@ -5,15 +5,20 @@ use cgmath::{point3, vec3, EuclideanSpace, Zero};
 use kiss3d::builtin::NormalsMaterial;
 use kiss3d::light::Light;
 use kiss3d::loader::mtl::MtlMaterial;
-use kiss3d::nalgebra::{Point3, Translation3};
+use kiss3d::loader::obj::Words;
+use kiss3d::nalgebra::{Point3, Translation3, Vector3};
 use kiss3d::resource::Material;
 use kiss3d::window::Window;
 use pbrtrs_core::scene::{load_scene, Camera, Shape};
 use pbrtrs_core::types::{scalar, Color, Pt3, Vec3};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
 use xml::attribute::OwnedAttribute;
 use xml::reader::{Events, XmlEvent};
 use xml::EventReader;
@@ -39,6 +44,90 @@ struct Ray {
     debug: String,
 }
 
+struct VisualDebuggerSharedData {
+    ray_lines: Vec<(Point3<f32>, Point3<f32>, Point3<f32>)>,
+    debug_vectors: Vec<(Point3<f32>, Point3<f32>, Point3<f32>)>,
+}
+
+struct VisualDebugger {
+    shared_data: Arc<Mutex<VisualDebuggerSharedData>>,
+    pixel: Pixel,
+    sample: usize,
+}
+
+impl VisualDebugger {
+    pub fn new(pixel: Pixel) -> VisualDebugger {
+        let vd = VisualDebugger {
+            shared_data: Arc::new(Mutex::new(VisualDebuggerSharedData {
+                ray_lines: vec![],
+                debug_vectors: vec![],
+            })),
+            pixel,
+            sample: 0,
+        };
+        vd.update_ray_lines();
+        vd
+    }
+
+    fn reset_debug_vectors(&self) {
+        let mut shared_data = self.shared_data.lock().unwrap();
+        shared_data.debug_vectors.clear();
+    }
+
+    fn add_debug_vector(&self, v: (Point3<f32>, Point3<f32>, Point3<f32>)) {
+        let mut shared_data = self.shared_data.lock().unwrap();
+        shared_data.debug_vectors.push(v);
+    }
+
+    fn update_ray_lines(&self) {
+        let mut d = self.shared_data.lock().unwrap();
+
+        d.ray_lines.clear();
+
+        let mut last: Option<Pt3> = None;
+        for ray in &self.current_sample().bounces {
+            if let Some(l) = last {
+                let l = Point3::new(l.x, l.y, l.z);
+                let o = Point3::new(ray.origin.x, ray.origin.y, ray.origin.z);
+                d.ray_lines.push((l, o, Point3::new(1.0, 0.0, 0.0)));
+                last = Some(ray.origin);
+            } else {
+                last = Some(ray.origin);
+            }
+        }
+        if let Some(ray) = self.current_sample().bounces.last() {
+            let o0 = Point3::new(ray.origin.x, ray.origin.y, ray.origin.z);
+            let o1 = ray.origin + ray.direction;
+            let o1 = Point3::new(o1.x, o1.y, o1.z);
+            d.ray_lines.push((o0, o1, Point3::new(1.0, 0.0, 1.0)));
+        }
+    }
+
+    fn highlight_ray(&self, idx: usize) {
+        let mut d = self.shared_data.lock().unwrap();
+
+        for (i, ray) in d.ray_lines.iter_mut().enumerate() {
+            if i != idx {
+                ray.2 = Point3::new(1.0, 0.0, 0.0);
+            } else {
+                ray.2 = Point3::new(0.0, 1.0, 0.0);
+            }
+        }
+    }
+
+    fn current_sample(&self) -> &Sample {
+        &self.pixel.samples[self.sample]
+    }
+}
+
+fn cgm_to_kiss3d_vec3(v: Vec3) -> Vector3<f32> {
+    Vector3::new(v.x, v.y, v.z)
+}
+
+fn cgm_to_kiss3d_pt3(v: Pt3) -> Point3<f32> {
+    Point3::new(v.x, v.y, v.z)
+}
+
 fn main() {
     let file = File::open("debug_out.xml").unwrap();
     let file = BufReader::new(file);
@@ -50,19 +139,7 @@ fn main() {
 
     let scene = load_scene("examples/hdr.toml");
 
-    let sample = &pixel.samples[186];
-    let mut rays = vec![];
-    let mut last: Option<Pt3> = None;
-    for ray in &sample.bounces {
-        if let Some(l) = last {
-            let l = Point3::new(l.x, l.y, l.z);
-            let o = Point3::new(ray.origin.x, ray.origin.y, ray.origin.z);
-            rays.push((l, o));
-            last = Some(ray.origin);
-        } else {
-            last = Some(ray.origin);
-        }
-    }
+    let mut vd = VisualDebugger::new(pixel);
 
     let mut window = Window::new("Debug");
     window.set_light(Light::StickToCamera);
@@ -81,11 +158,98 @@ fn main() {
         }
     }
 
+    let window_is_open = Arc::new(AtomicBool::new(true));
+
+    let vd_shared_data = vd.shared_data.clone();
+
+    let prompt_thread = {
+        let window_is_open = window_is_open.clone();
+        let current_origin = cgm_to_kiss3d_pt3(scene.camera.position);
+        thread::spawn(move || {
+            let mut current_origin = current_origin;
+            let mut current_debug_refs = Vec::new();
+            while window_is_open.load(Ordering::Relaxed) {
+                print!("> ");
+                std::io::stdout().flush().unwrap();
+                let mut input_raw = String::new();
+                std::io::stdin().read_line(&mut input_raw).unwrap();
+                let input = input_raw.trim().split(' ').collect::<Vec<_>>();
+                match input[0] {
+                    "q" => {
+                        window_is_open.store(false, Ordering::Relaxed);
+                    }
+                    "s" => {
+                        let sample = input[1].parse::<usize>().unwrap();
+                        vd.sample = sample;
+                        vd.update_ray_lines();
+                    }
+                    "r" => {
+                        let ray_idx = input[1].parse::<usize>().unwrap();
+                        vd.highlight_ray(ray_idx);
+                        let ray = &vd.current_sample().bounces[ray_idx];
+                        if let Some(after) = vd.current_sample().bounces.get(ray_idx + 1) {
+                            current_origin = cgm_to_kiss3d_pt3(after.origin);
+                        } else {
+                            current_origin = cgm_to_kiss3d_pt3(ray.origin);
+                        }
+
+                        for line in ray.debug.trim().lines() {
+                            let line = line.trim();
+                            if line.starts_with("pbrtrs_core") {
+                                println!("@{line}");
+                            } else {
+                                let (name, value) = line.split_once(':').unwrap();
+                                let name = name.trim();
+                                let value = value.trim();
+                                let idx = current_debug_refs.len();
+                                current_debug_refs.push(value.to_string());
+                                println!("    {idx}: {name}: {value}");
+                            }
+                        }
+                    }
+                    "clear" => {
+                        vd.reset_debug_vectors();
+                    }
+                    "v" => {
+                        let x = input[1].parse::<f32>().unwrap();
+                        let y = input[2].parse::<f32>().unwrap();
+                        let z = input[3].parse::<f32>().unwrap();
+                        let v = Vector3::new(x, y, z);
+                        vd.add_debug_vector((
+                            current_origin,
+                            current_origin + v,
+                            Point3::new(0.0, 1.0, 1.0),
+                        ));
+                    }
+                    "vr" => {
+                        let r = input[1].parse::<usize>().unwrap();
+                        let val = &current_debug_refs[r];
+                        let v = cgm_to_kiss3d_vec3(parse_vec3(val));
+
+                        vd.add_debug_vector((
+                            current_origin,
+                            current_origin + v,
+                            Point3::new(0.0, 1.0, 1.0),
+                        ));
+                    }
+                    _ => {
+                        println!("Invalid");
+                    }
+                }
+            }
+        })
+    };
+
     while window.render() {
-        for ray in &rays {
-            window.draw_line(&ray.0, &ray.1, &Point3::new(1.0, 0.0, 0.0));
+        let vd = vd_shared_data.lock().unwrap();
+        for ray in vd.ray_lines.iter().chain(vd.debug_vectors.iter()) {
+            window.draw_line(&ray.0, &ray.1, &ray.2);
         }
     }
+
+    window_is_open.store(false, Ordering::Relaxed);
+    window.close();
+    prompt_thread.join().unwrap();
 }
 
 fn parse_document(parser: &mut Events<impl Read>) -> (Pixel, Camera) {
