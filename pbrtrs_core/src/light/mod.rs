@@ -52,14 +52,14 @@ pub trait LightTrait {
 
     fn le(&self, wi: &Ray) -> Color;
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        intersection: &Intersection<M>,
+        intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color;
 
-    fn pdf_li<M>(&self, intersection: &Intersection<M>, wi: Vec3) -> Scalar;
+    fn pdf_li<M, O>(&self, intersection: &Intersection<M, O>, wi: Vec3) -> Scalar;
 
     fn is_delta(&self) -> bool {
         self.kind().has(LightKind::DELTA_POSITION) || self.kind().has(LightKind::DELTA_DIRECTION)
@@ -91,9 +91,9 @@ impl LightTrait for PointLight {
         BLACK
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        intersection: &Intersection<M>,
+        intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
@@ -104,7 +104,7 @@ impl LightTrait for PointLight {
         self.radiance / (distance + 1.0).powi(2)
     }
 
-    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, _intersection: &Intersection<M, O>, _wi: Vec3) -> Scalar {
         0.0
     }
 }
@@ -140,9 +140,9 @@ impl LightTrait for SpotLight {
         BLACK
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        intersection: &Intersection<M>,
+        intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
@@ -159,7 +159,7 @@ impl LightTrait for SpotLight {
         }
     }
 
-    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, _intersection: &Intersection<M, O>, _wi: Vec3) -> Scalar {
         0.0
     }
 }
@@ -178,9 +178,9 @@ impl LightTrait for AmbientLight {
         self.radiance
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        _intersection: &Intersection<M>,
+        _intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
@@ -189,7 +189,7 @@ impl LightTrait for AmbientLight {
         self.radiance
     }
 
-    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, _intersection: &Intersection<M, O>, _wi: Vec3) -> Scalar {
         1.0 / (4.0 * PI)
     }
 }
@@ -209,9 +209,9 @@ impl LightTrait for DirectionLight {
         BLACK
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        _intersection: &Intersection<M>,
+        _intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
@@ -220,7 +220,7 @@ impl LightTrait for DirectionLight {
         self.radiance
     }
 
-    fn pdf_li<M>(&self, _intersection: &Intersection<M>, _wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, _intersection: &Intersection<M, O>, _wi: Vec3) -> Scalar {
         0.0
     }
 }
@@ -240,8 +240,8 @@ impl Material for AreaLight {
         self.radiance
     }
 
-    fn compute_scattering<'arena>(
-        si: &Intersection<Self::Sampled>,
+    fn compute_scattering<'arena, O>(
+        si: &Intersection<Self::Sampled, O>,
         arena: &'arena Bump,
         mode: TransportMode,
         allow_multiple_lobes: bool,
@@ -259,9 +259,9 @@ impl LightTrait for AreaLight {
         self.radiance
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        intersection: &Intersection<M>,
+        intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
@@ -269,7 +269,7 @@ impl LightTrait for AreaLight {
         BLACK
     }
 
-    fn pdf_li<M>(&self, intersection: &Intersection<M>, wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, intersection: &Intersection<M, O>, wi: Vec3) -> Scalar {
         0.0
     }
 }
@@ -306,23 +306,23 @@ impl LightTrait for Light {
         indirect_light_trait!(self, le(wi))
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        intersection: &Intersection<M>,
+        intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
         indirect_light_trait!(self, sample_li(intersection, wi, pdf))
     }
 
-    fn pdf_li<M>(&self, intersection: &Intersection<M>, wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, intersection: &Intersection<M, O>, wi: Vec3) -> Scalar {
         indirect_light_trait!(self, pdf_li(intersection, wi))
     }
 }
 
-pub fn sample_one_light<M>(
+pub fn sample_one_light<M, O>(
     ray: &Ray,
-    intersection: &Intersection<M>,
+    intersection: &Intersection<M, O>,
     bsdf: &BSDF,
     scene: &Scene,
 ) -> Color {
@@ -343,9 +343,9 @@ pub fn sample_one_light<M>(
     estimate_direct(ray, intersection, light, bsdf, scene, false) / pdf_scale
 }
 
-pub fn estimate_direct<M>(
+pub fn estimate_direct<M, O>(
     ray: &Ray,
-    intersection: &Intersection<M>,
+    intersection: &Intersection<M, O>,
     light: &Light,
     bsdf: &BSDF,
     scene: &Scene,

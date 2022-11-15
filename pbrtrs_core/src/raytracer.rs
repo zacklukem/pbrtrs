@@ -21,6 +21,15 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
         debugger::begin_ray!(ray);
         match scene.intersect(&ray) {
             PossibleIntersection::Hit(intersection) => {
+                debugger::ray_debug! {
+                    intersection.normal,
+                    intersection.tangent,
+                    intersection.point,
+                    intersection.distance,
+                    intersection.uv,
+                    intersection.object
+                }
+
                 let bsdf = DisneyMaterial::compute_scattering(
                     &intersection,
                     arena,
@@ -49,6 +58,8 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                 if f.distance2(Color::origin()) == 0.0 || pdf == 0.0 {
                     debugger::ray_print!("PDF 0 Miss ");
                     debugger::ray_debug! {
+                        sampled_kind,
+                        wi,
                         f,
                         pdf
                     }
@@ -64,8 +75,7 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                     sampled_kind,
                     -ray.direction,
                     beta,
-                    radiance,
-                    intersection.normal
+                    radiance
                 }
 
                 if bounce_count > 3 && (1.0 - max_value3(beta).max(0.7)) < scalar::rand() {
@@ -76,7 +86,7 @@ pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color
                 ray = Ray::new(intersection.point, wi, ray.time);
             }
             PossibleIntersection::HitLight(intersection) => {
-                let area = intersection.sampled_material;
+                let area = intersection.object;
                 radiance.add_assign_element_wise(area.le(&ray).mul_element_wise(beta));
                 break;
             }

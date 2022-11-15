@@ -1,22 +1,24 @@
+use crate::debugger;
 use crate::light::{AreaLight, Light};
 use crate::material::{EmptyMaterial, Material};
-use crate::scene::{SampledDisneyMaterial, Scene, Shape};
+use crate::scene::{Object, SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
 use crate::types::{Mat4, Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
 use cgmath::{
     point2, point3, vec3, EuclideanSpace, InnerSpace, MetricSpace, Rotation, Transform, Zero,
 };
 
-pub struct Intersection<M> {
+pub struct Intersection<'a, M, O> {
     pub distance: Scalar,
     pub normal: Vec3,
     pub tangent: Vec3,
     pub point: Pt3,
     pub sampled_material: M,
+    pub object: &'a O,
     pub uv: Pt2,
 }
 
-impl Intersection<()> {
+impl Intersection<'static, (), ()> {
     pub const fn dummy() -> Self {
         Self {
             distance: 0.0,
@@ -24,12 +26,14 @@ impl Intersection<()> {
             tangent: vec3(0.0, 0.0, 0.0),
             point: point3(0.0, 0.0, 0.0),
             sampled_material: (),
+            object: &(),
             uv: point2(0.0, 0.0),
         }
     }
 }
-impl<M> Intersection<M> {
-    pub fn map<T, F>(self, f: F) -> Intersection<T>
+
+impl<'a, M, O> Intersection<'a, M, O> {
+    pub fn map_material<T, F>(self, f: F) -> Intersection<'a, T, O>
     where
         F: FnOnce(M) -> T,
     {
@@ -40,6 +44,7 @@ impl<M> Intersection<M> {
             point,
             sampled_material,
             uv,
+            object,
         } = self;
         Intersection {
             distance,
@@ -48,18 +53,19 @@ impl<M> Intersection<M> {
             point,
             uv,
             sampled_material: f(sampled_material),
+            object,
         }
     }
 }
 
-pub enum PossibleIntersection<'a, M> {
-    Hit(Intersection<M>),
-    HitLight(Intersection<&'a AreaLight>),
+pub enum PossibleIntersection<'a, M, O> {
+    Hit(Intersection<'a, M, O>),
+    HitLight(Intersection<'a, (), AreaLight>),
     Miss,
     Ignored,
 }
 
-impl<'a, M> PossibleIntersection<'a, M> {
+impl<'a, M, O> PossibleIntersection<'a, M, O> {
     pub fn is_miss(&self) -> bool {
         matches!(self, PossibleIntersection::Miss)
     }
@@ -80,14 +86,14 @@ impl<'a, M> PossibleIntersection<'a, M> {
         }
     }
 
-    pub fn unwrap(&self) -> &Intersection<M> {
+    pub fn unwrap(&self) -> &Intersection<'a, M, O> {
         match self {
             PossibleIntersection::Hit(i) => i,
             _ => panic!("unwrap called on a miss or ignored intersection"),
         }
     }
 
-    pub fn unwrap_into(self) -> Intersection<M> {
+    pub fn unwrap_into(self) -> Intersection<'a, M, O> {
         match self {
             PossibleIntersection::Hit(i) => i,
             _ => panic!("unwrap called on a miss or ignored intersection"),
@@ -96,13 +102,14 @@ impl<'a, M> PossibleIntersection<'a, M> {
 }
 
 impl Shape {
-    pub fn intersect<'mat, M: Material>(
+    pub fn intersect<'mat, M: Material, O>(
         &self,
         ray: &Ray,
         rotate: Quaternion,
         translate: Vec3,
         material: &'mat M,
-    ) -> PossibleIntersection<M::Sampled> {
+        object: &'mat O,
+    ) -> PossibleIntersection<'mat, M::Sampled, O> {
         const T_MIN: Scalar = 0.001;
         match self {
             Self::Sphere { radius } => {
@@ -147,50 +154,7 @@ impl Shape {
                             tangent,
                             sampled_material: material.sample(uv),
                             uv,
-                        })
-                    }
-                }
-            }
-            Self::Rectangle { width, height } => {
-                let o = rotate.rotate_point(ray.origin - translate);
-                let l = rotate.rotate_point(ray.origin + ray.direction);
-                let ray = Ray::new(o, l - o, ray.time);
-
-                let t = ray.origin.z / -ray.direction.z;
-
-                if t < 0.0 {
-                    PossibleIntersection::Miss
-                } else if t < T_MIN {
-                    PossibleIntersection::Ignored
-                } else {
-                    let x0 = -width / 2.0;
-                    let x1 = width / 2.0;
-                    let y0 = -height / 2.0;
-                    let y1 = height / 2.0;
-
-                    let x = ray.origin.x + t * ray.direction.x;
-                    let y = ray.origin.y + t * ray.direction.y;
-
-                    if x < x0 || x > x1 || y < y0 || y > y1 {
-                        PossibleIntersection::Miss
-                    } else {
-                        let point = ray.at(t);
-
-                        let normal = vec3(0.0, 1.0, 0.0);
-                        let tangent = vec3(0.0, 0.0, 1.0);
-
-                        // let normal = rotate.rotate_vector(normal);
-                        // let tangent = rotate.rotate_vector(tangent);
-
-                        let uv = point2((x - x0) / width, (y - y0) / height);
-
-                        PossibleIntersection::Hit(Intersection {
-                            distance: t,
-                            point,
-                            normal,
-                            tangent,
-                            sampled_material: material.sample(uv),
-                            uv,
+                            object,
                         })
                     }
                 }
@@ -200,7 +164,7 @@ impl Shape {
 }
 
 impl Scene {
-    pub fn intersect(&self, ray: &Ray) -> PossibleIntersection<SampledDisneyMaterial> {
+    pub fn intersect(&self, ray: &Ray) -> PossibleIntersection<SampledDisneyMaterial, Object> {
         let mut nearest = PossibleIntersection::Miss;
         for object in &self.objects {
             match object.shape.intersect(
@@ -208,6 +172,7 @@ impl Scene {
                 object.rotation,
                 object.position.to_vec() + object.motion * ray.time,
                 &object.material,
+                object,
             ) {
                 PossibleIntersection::Hit(intersection) => {
                     if nearest.is_miss() || intersection.distance < nearest.unwrap_distance() {
@@ -228,10 +193,11 @@ impl Scene {
                     area.rotation,
                     area.position.to_vec(),
                     &EmptyMaterial,
+                    area,
                 ) {
                     PossibleIntersection::Hit(intersection) => {
                         if nearest.is_miss() || intersection.distance < nearest.unwrap_distance() {
-                            nearest = PossibleIntersection::HitLight(intersection.map(|_| area));
+                            nearest = PossibleIntersection::HitLight(intersection);
                         }
                     }
                     PossibleIntersection::Ignored => {
@@ -246,16 +212,14 @@ impl Scene {
     }
 }
 
-#[cfg(fixme)]
 mod tests {
     use super::*;
     use crate::material::EmptyMaterial;
     use crate::types::Mat4;
-    use cgmath::{point3, vec3};
+    use cgmath::{point3, vec3, Rad, Rotation3};
 
     #[test]
     fn sphere_intersect() {
-        let material = EmptyMaterial;
         let shape = Shape::Sphere { radius: 1.0 };
         // Sphere at (0, 2, 0), camera at origin, looking in +y
         let Intersection {
@@ -266,9 +230,11 @@ mod tests {
             ..
         } = shape
             .intersect(
-                &Ray::new(Pt3::origin(), vec3(0.0, 1.0, 0.0)),
+                &Ray::new(Pt3::origin(), vec3(0.0, 1.0, 0.0), 0.0),
+                Quaternion::zero(),
                 vec3(0.0, 2.0, 0.0),
-                &material,
+                &EmptyMaterial,
+                &(),
             )
             .unwrap_into();
         assert_eq!(point, point3(0.0, 1.0, 0.0));
@@ -286,9 +252,11 @@ mod tests {
             ..
         } = shape
             .intersect(
-                &Ray::new(Pt3::origin(), vec3(0.0, 1.0, 0.0)),
+                &Ray::new(Pt3::origin(), vec3(0.0, 1.0, 0.0), 0.0),
+                Quaternion::zero(),
                 vec3(0.0, 4.0, 0.0),
-                &material,
+                &EmptyMaterial,
+                &(),
             )
             .unwrap_into();
         assert_eq!(point, point3(0.0, 2.0, 0.0));
@@ -302,19 +270,24 @@ mod tests {
             .intersect(
                 &Ray::new(
                     point3(3.0, 1.5, 3.0),
-                    vec3(-0.11515933, 0.35110158, -0.9292287)
+                    vec3(-0.11515933, 0.35110158, -0.9292287),
+                    0.0
                 ),
+                Quaternion::zero(),
                 vec3(0.0, -100.0, 0.0),
-                &material,
+                &EmptyMaterial,
+                &(),
             )
             .is_miss());
 
         let shape = Shape::Sphere { radius: 1.0 };
         assert!(shape
             .intersect(
-                &Ray::new(point3(0.0, 1.0, 0.0), vec3(0.0, -1.0, 0.0)),
+                &Ray::new(point3(0.0, 1.0, 0.0), vec3(0.0, -1.0, 0.0), 0.0),
+                Quaternion::zero(),
                 vec3(0.0, 0.0, 0.0),
-                &material,
+                &EmptyMaterial,
+                &(),
             )
             .is_ignored());
     }

@@ -21,8 +21,8 @@ pub trait Material {
 
     fn sample(&self, uv: Pt2) -> Self::Sampled;
 
-    fn compute_scattering<'arena>(
-        si: &Intersection<Self::Sampled>,
+    fn compute_scattering<'arena, O>(
+        si: &Intersection<Self::Sampled, O>,
         arena: &'arena Bump,
         mode: TransportMode,
         allow_multiple_lobes: bool,
@@ -50,8 +50,8 @@ impl Material for DisneyMaterial {
         }
     }
 
-    fn compute_scattering<'arena>(
-        si: &Intersection<Self::Sampled>,
+    fn compute_scattering<'arena, O>(
+        si: &Intersection<Self::Sampled, O>,
         arena: &'arena Bump,
         transport_mode: TransportMode,
         allow_multiple_lobes: bool,
@@ -128,8 +128,8 @@ impl Material for EmptyMaterial {
 
     fn sample(&self, _uv: Pt2) -> Self::Sampled {}
 
-    fn compute_scattering<'arena>(
-        si: &Intersection<Self::Sampled>,
+    fn compute_scattering<'arena, O>(
+        si: &Intersection<Self::Sampled, O>,
         _arena: &'arena Bump,
         _mode: TransportMode,
         _allow_multiple_lobes: bool,

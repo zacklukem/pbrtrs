@@ -227,7 +227,6 @@ pub struct Object {
 #[serde(tag = "kind")]
 pub enum Shape {
     Sphere { radius: Scalar },
-    Rectangle { width: Scalar, height: Scalar },
 }
 
 impl Hdri {

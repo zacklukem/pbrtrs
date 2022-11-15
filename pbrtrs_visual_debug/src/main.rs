@@ -6,10 +6,10 @@ use kiss3d::builtin::NormalsMaterial;
 use kiss3d::light::Light;
 use kiss3d::loader::mtl::MtlMaterial;
 use kiss3d::loader::obj::Words;
-use kiss3d::nalgebra::{Point3, Translation3, Vector3};
+use kiss3d::nalgebra::{Point3, Quaternion, Translation3, UnitQuaternion, Vector3};
 use kiss3d::resource::Material;
 use kiss3d::window::Window;
-use pbrtrs_core::scene::{load_scene, Camera, Shape};
+use pbrtrs_core::scene::{load_scene, Camera, Shape, Texture};
 use pbrtrs_core::types::{scalar, Color, Pt3, Vec3};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -145,15 +145,24 @@ fn main() {
     window.set_light(Light::StickToCamera);
 
     for object in &scene.objects {
-        match &object.shape {
+        let mut node = match &object.shape {
             Shape::Sphere { radius } => {
                 let mut sphere = window.add_sphere(*radius);
-                sphere.set_color(scalar::rand(), scalar::rand(), scalar::rand());
                 sphere.set_local_translation(Translation3::new(
                     object.position.x,
                     object.position.y,
                     object.position.z,
                 ));
+                sphere
+            }
+        };
+
+        match &object.material.base_color {
+            Texture::Value(c) => {
+                node.set_color(c.x, c.y, c.z);
+            }
+            Texture::Image(_) => {
+                node.set_color(scalar::rand(), scalar::rand(), scalar::rand());
             }
         }
     }
@@ -162,7 +171,7 @@ fn main() {
 
     let vd_shared_data = vd.shared_data.clone();
 
-    let prompt_thread = {
+    let _prompt_thread = {
         let window_is_open = window_is_open.clone();
         let current_origin = cgm_to_kiss3d_pt3(scene.camera.position);
         thread::spawn(move || {
@@ -174,19 +183,46 @@ fn main() {
                 let mut input_raw = String::new();
                 std::io::stdin().read_line(&mut input_raw).unwrap();
                 let input = input_raw.trim().split(' ').collect::<Vec<_>>();
+                macro_rules! prompt_try {
+                    ($e: expr) => {
+                        (match $e {
+                            Ok(v) => v,
+                            Err(_) => {
+                                println!("Invalid input");
+                                continue;
+                            }
+                        })
+                    };
+                }
+                macro_rules! prompt_try_opt {
+                    ($e: expr) => {
+                        (match $e {
+                            Some(v) => v,
+                            None => {
+                                println!("Invalid input");
+                                continue;
+                            }
+                        })
+                    };
+                }
+                macro_rules! arg {
+                    ($n: expr) => {
+                        prompt_try_opt!(input.get($n))
+                    };
+                }
                 match input[0] {
                     "q" => {
                         window_is_open.store(false, Ordering::Relaxed);
                     }
                     "s" => {
-                        let sample = input[1].parse::<usize>().unwrap();
+                        let sample = prompt_try!(arg!(1).parse::<usize>());
                         vd.sample = sample;
                         vd.update_ray_lines();
                     }
                     "r" => {
-                        let ray_idx = input[1].parse::<usize>().unwrap();
+                        let ray_idx = arg!(1).parse::<usize>().unwrap();
                         vd.highlight_ray(ray_idx);
-                        let ray = &vd.current_sample().bounces[ray_idx];
+                        let ray = prompt_try_opt!(vd.current_sample().bounces.get(ray_idx));
                         if let Some(after) = vd.current_sample().bounces.get(ray_idx + 1) {
                             current_origin = cgm_to_kiss3d_pt3(after.origin);
                         } else {
@@ -198,7 +234,7 @@ fn main() {
                             if line.starts_with("pbrtrs_core") {
                                 println!("@{line}");
                             } else {
-                                let (name, value) = line.split_once(':').unwrap();
+                                let (name, value) = prompt_try_opt!(line.split_once(':'));
                                 let name = name.trim();
                                 let value = value.trim();
                                 let idx = current_debug_refs.len();
@@ -211,9 +247,9 @@ fn main() {
                         vd.reset_debug_vectors();
                     }
                     "v" => {
-                        let x = input[1].parse::<f32>().unwrap();
-                        let y = input[2].parse::<f32>().unwrap();
-                        let z = input[3].parse::<f32>().unwrap();
+                        let x = prompt_try!(arg!(1).parse::<f32>());
+                        let y = prompt_try!(arg!(2).parse::<f32>());
+                        let z = prompt_try!(arg!(3).parse::<f32>());
                         let v = Vector3::new(x, y, z);
                         vd.add_debug_vector((
                             current_origin,
@@ -222,7 +258,7 @@ fn main() {
                         ));
                     }
                     "vr" => {
-                        let r = input[1].parse::<usize>().unwrap();
+                        let r = prompt_try!(arg!(1).parse::<usize>());
                         let val = &current_debug_refs[r];
                         let v = cgm_to_kiss3d_vec3(parse_vec3(val));
 
@@ -244,12 +280,11 @@ fn main() {
         let vd = vd_shared_data.lock().unwrap();
         for ray in vd.ray_lines.iter().chain(vd.debug_vectors.iter()) {
             window.draw_line(&ray.0, &ray.1, &ray.2);
+            window.draw_point(&ray.1, &ray.2)
         }
     }
 
     window_is_open.store(false, Ordering::Relaxed);
-    window.close();
-    prompt_thread.join().unwrap();
 }
 
 fn parse_document(parser: &mut Events<impl Read>) -> (Pixel, Camera) {

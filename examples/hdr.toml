@@ -1,14 +1,14 @@
 [camera]
-position = [0.0, 8.0, 0.1]
-direction = [0.0, -8.0, -0.1]
+position = [0.0, 2.0, -6.0]
+direction = [0.0, -1.0, 6.0]
 sensor_distance = 0.9
 exposure_time = 0.2
-aperture = 0.0
+aperture = 0.2
 focus_distance = 6.08
 ldr_scale = 1.0
 
 bounce_limit = 10
-num_samples = 1000
+num_samples = 2000
 width = 512
 height = 400
 
@@ -140,12 +140,12 @@ ior = 1.5
 
 # Big Sphere
 [[objects]]
-shape = { kind = "Rectangle", width = 20.0, height = 8.0 }
-position = [0.0, 0.1, 0.0]
+shape = { kind = "Sphere", radius = 100.0 }
+position = [0.0, -100.0, 0.0]
 rotation = [90.0, 0.0, 0.0]
 
 [objects.material]
-base_color = [0.6, 0.6, 0.6]
+base_color = [0.2, 0.2, 0.2]
 subsurface = 0.0
 metallic = 0.0
 specular = 0.0

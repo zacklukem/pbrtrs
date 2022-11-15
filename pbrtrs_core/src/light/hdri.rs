@@ -168,9 +168,9 @@ impl LightTrait for Hdri {
         self.lookup(point2(u, v))
     }
 
-    fn sample_li<M>(
+    fn sample_li<M, O>(
         &self,
-        _intersection: &Intersection<M>,
+        _intersection: &Intersection<M, O>,
         wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
@@ -200,7 +200,7 @@ impl LightTrait for Hdri {
         self.lookup(uv)
     }
 
-    fn pdf_li<M>(&self, _intersection: &Intersection<M>, wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, _intersection: &Intersection<M, O>, wi: Vec3) -> Scalar {
         let theta = wi.angle(vec3(0.0, 1.0, 0.0)).0;
         let phi = wi.x.atan2(wi.z) + PI;
         let sin_theta = theta.sin();

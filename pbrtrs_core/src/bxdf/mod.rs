@@ -468,7 +468,7 @@ pub struct BSDF<'arena> {
 }
 
 impl<'arena> BSDF<'arena> {
-    pub fn new<'a, M>(intersect: &Intersection<M>) -> BSDF<'a> {
+    pub fn new<'a, M, O>(intersect: &Intersection<M, O>) -> BSDF<'a> {
         let geom_normal = intersect.normal;
         let surface_normal = intersect.normal; // TODO: make this right
         let surface_tangent = intersect.tangent; // TODO: <<<<<
@@ -636,12 +636,14 @@ mod tests {
         // test if world_to_normal and normal_to_world are inverses
         macro_rules! test_direction {
             ($direction: expr) => {
-                let shape = Shape::Sphere(1.0);
+                let shape = Shape::Sphere { radius: 1.0 };
                 let si = shape
                     .intersect(
-                        &Ray::new(Pt3::from_vec($direction * 10.0), -$direction),
+                        &Ray::new(Pt3::from_vec($direction * 10.0), -$direction, 0.0),
+                        Quaternion::zero(),
                         vec3(0.0, 0.0, 0.0),
                         &EmptyMaterial,
+                        &(),
                     )
                     .unwrap_into();
 
