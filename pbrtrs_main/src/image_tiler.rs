@@ -88,35 +88,3 @@ impl<T> ImageTile<T> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn image_tile_top_left() {
-        let mut image = ImageTileGenerator::new(32, 32);
-        let mut tile = image.get_tile::<u8>().unwrap();
-
-        let mut tile_count = 0;
-        while tile.next_tile().is_some() {
-            tile_count += 1;
-        }
-
-        assert_eq!(tile_count, TILE_SIZE * TILE_SIZE);
-    }
-
-    #[test]
-    fn image_tile_top_right() {
-        let mut image = ImageTileGenerator::new(30, 10);
-        image.get_tile::<u8>();
-        let mut tile = image.get_tile::<u8>().unwrap();
-
-        let mut tile_count = 0;
-        while tile.next_tile().is_some() {
-            tile_count += 1;
-        }
-
-        assert_eq!(tile_count, tile.width * tile.height);
-    }
-}
