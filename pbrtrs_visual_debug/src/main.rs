@@ -2,20 +2,13 @@ extern crate kiss3d;
 extern crate xml;
 
 use cgmath::{point3, vec3, EuclideanSpace, Zero};
-use kiss3d::builtin::NormalsMaterial;
 use kiss3d::light::Light;
-use kiss3d::loader::mtl::MtlMaterial;
-use kiss3d::loader::obj::Words;
-use kiss3d::nalgebra::{Point3, Quaternion, Translation3, UnitQuaternion, Vector3};
-use kiss3d::resource::Material;
+use kiss3d::nalgebra::{Point3, Translation3, Vector3};
 use kiss3d::window::Window;
 use pbrtrs_core::scene::{load_scene, Camera, Shape, Texture};
 use pbrtrs_core::types::{scalar, Color, Pt3, Vec3};
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
-use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -23,12 +16,14 @@ use xml::attribute::OwnedAttribute;
 use xml::reader::{Events, XmlEvent};
 use xml::EventReader;
 
+#[allow(unused)]
 #[derive(Debug)]
 struct Pixel {
     color: Color,
     samples: Vec<Sample>,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 struct Sample {
     idx: usize,
@@ -36,6 +31,7 @@ struct Sample {
     bounces: Vec<Ray>,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 struct Ray {
     idx: usize,
@@ -320,7 +316,7 @@ fn parse_camera(parser: &mut Events<impl Read>, _attr: &[OwnedAttribute]) -> Cam
         width: 0,
         height: 0,
     };
-    while let Some(e) = parser.next() {
+    for e in parser.by_ref() {
         match e {
             Ok(XmlEvent::StartElement {
                 name, attributes, ..
@@ -341,10 +337,7 @@ fn parse_camera(parser: &mut Events<impl Read>, _attr: &[OwnedAttribute]) -> Cam
                     _ => {}
                 }
             }
-            Ok(XmlEvent::EndElement { name }) => match name.local_name.as_str() {
-                "camera" => break,
-                _ => {}
-            },
+            Ok(XmlEvent::EndElement { name }) if name.local_name.as_str() == "camera" => break,
             Err(e) => println!("Error: {}", e),
             _ => {}
         }
@@ -362,7 +355,7 @@ fn get_attr<'a>(attributes: &'a [OwnedAttribute], name: &str) -> Option<&'a str>
 fn parse_pt3(s: &str) -> Pt3 {
     let brackets = s
         .trim_start_matches("Point3 [")
-        .trim_end_matches("]")
+        .trim_end_matches(']')
         .split(',');
     let el = brackets
         .map(|s| s.trim().parse::<f32>().unwrap())
@@ -374,7 +367,7 @@ fn parse_pt3(s: &str) -> Pt3 {
 fn parse_vec3(s: &str) -> Vec3 {
     let brackets = s
         .trim_start_matches("Vector3 [")
-        .trim_end_matches("]")
+        .trim_end_matches(']')
         .split(',');
     let el = brackets
         .map(|s| s.trim().parse::<f32>().unwrap())
@@ -396,14 +389,12 @@ fn parse_pixel(parser: &mut Events<impl Read>, attr: &[OwnedAttribute]) -> Pixel
         match e {
             Ok(XmlEvent::StartElement {
                 name, attributes, ..
-            }) => match name.local_name.as_str() {
-                "sample" => out.samples.push(parse_sample(parser, &attributes)),
-                _ => {}
-            },
-            Ok(XmlEvent::EndElement { name }) => match name.local_name.as_str() {
-                "pixel" => break,
-                _ => {}
-            },
+            }) if name.local_name.as_str() == "sample" => {
+                out.samples.push(parse_sample(parser, &attributes))
+            }
+            Ok(XmlEvent::EndElement { name }) if name.local_name.as_str() == "pixel" => {
+                break;
+            }
             Err(e) => println!("Error: {}", e),
             _ => {}
         }
@@ -421,14 +412,12 @@ fn parse_sample(parser: &mut Events<impl Read>, attr: &[OwnedAttribute]) -> Samp
         match e {
             Ok(XmlEvent::StartElement {
                 name, attributes, ..
-            }) => match name.local_name.as_str() {
-                "ray" => out.bounces.push(parse_ray(parser, &attributes)),
-                _ => {}
-            },
-            Ok(XmlEvent::EndElement { name }) => match name.local_name.as_str() {
-                "sample" => break,
-                _ => {}
-            },
+            }) if name.local_name.as_str() == "ray" => {
+                out.bounces.push(parse_ray(parser, &attributes))
+            }
+            Ok(XmlEvent::EndElement { name }) if name.local_name.as_str() == "sample" => {
+                break;
+            }
             Err(e) => println!("Error: {}", e),
             _ => {}
         }
@@ -442,13 +431,12 @@ fn parse_ray(parser: &mut Events<impl Read>, attr: &[OwnedAttribute]) -> Ray {
         direction: parse_vec3(get_attr(attr, "direction").unwrap()),
         debug: String::new(),
     };
-    while let Some(e) = parser.next() {
+    for e in parser.by_ref() {
         match e {
             Ok(XmlEvent::Whitespace(s)) | Ok(XmlEvent::Characters(s)) => out.debug.push_str(&s),
-            Ok(XmlEvent::EndElement { name }) => match name.local_name.as_str() {
-                "ray" => break,
-                _ => {}
-            },
+            Ok(XmlEvent::EndElement { name }) if name.local_name.as_str() == "ray" => {
+                break;
+            }
             Err(e) => println!("Error: {}", e),
             _ => {}
         }

@@ -4,12 +4,12 @@ use crate::intersect::Intersection;
 use crate::light::hdri::Hdri;
 use crate::material::{Material, TransportMode};
 use crate::scene::{Scene, Shape};
-use crate::types::color::{BLACK, WHITE};
+use crate::types::color::{BLACK};
 use crate::types::scalar::consts::PI;
-use crate::types::{scalar, Color, Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
+use crate::types::{Color, Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
 use crate::util::{bitfield_methods, random_unit_vec};
 use bumpalo::Bump;
-use cgmath::{point3, vec3, ElementWise, InnerSpace, Zero};
+use cgmath::{ElementWise, InnerSpace, Zero};
 use std::fmt::{Debug, Formatter};
 
 pub mod hdri;
@@ -236,15 +236,15 @@ pub struct AreaLight {
 impl Material for AreaLight {
     type Sampled = Color;
 
-    fn sample(&self, uv: Pt2) -> Self::Sampled {
+    fn sample(&self, _uv: Pt2) -> Self::Sampled {
         self.radiance
     }
 
     fn compute_scattering<'arena, O>(
-        si: &Intersection<Self::Sampled, O>,
-        arena: &'arena Bump,
-        mode: TransportMode,
-        allow_multiple_lobes: bool,
+        _si: &Intersection<Self::Sampled, O>,
+        _arena: &'arena Bump,
+        _mode: TransportMode,
+        _allow_multiple_lobes: bool,
     ) -> BSDF<'arena> {
         panic!()
     }
@@ -255,21 +255,21 @@ impl LightTrait for AreaLight {
         LightKind::AREA
     }
 
-    fn le(&self, wi: &Ray) -> Color {
+    fn le(&self, _wi: &Ray) -> Color {
         self.radiance
     }
 
     fn sample_li<M, O>(
         &self,
-        intersection: &Intersection<M, O>,
-        wi: &mut Vec3,
+        _intersection: &Intersection<M, O>,
+        _wi: &mut Vec3,
         pdf: &mut Scalar,
     ) -> Color {
         *pdf = 0.0;
         BLACK
     }
 
-    fn pdf_li<M, O>(&self, intersection: &Intersection<M, O>, wi: Vec3) -> Scalar {
+    fn pdf_li<M, O>(&self, _intersection: &Intersection<M, O>, _wi: Vec3) -> Scalar {
         0.0
     }
 }

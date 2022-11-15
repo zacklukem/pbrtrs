@@ -1,4 +1,3 @@
-use crate::debugger;
 use crate::intersect::Intersection;
 use crate::light::{LightKind, LightTrait};
 use crate::types::color::BLACK;
@@ -29,6 +28,7 @@ pub struct Distribution1D {
 }
 
 impl Distribution1D {
+    #[allow(clippy::needless_range_loop)]
     pub fn new(func: Vec<Scalar>) -> Self {
         let n = func.len();
         let mut cdf = vec![0.0; n + 1];
@@ -87,16 +87,14 @@ pub struct Distribution2D {
 
 impl Distribution2D {
     pub fn new(f: impl ExactSizeIterator<Item = Vec<Scalar>>) -> Self {
-        let p_conditional_v = f
-            .map(|f| Distribution1D::new(f))
-            .collect::<Vec<Distribution1D>>();
+        let p_conditional_v = f.map(Distribution1D::new).collect::<Vec<Distribution1D>>();
 
         let p_integral = p_conditional_v
             .iter()
             .map(|p| p.integral)
             .collect::<Vec<_>>();
 
-        let p_marginal = Distribution1D::new(p_integral.iter().copied().collect::<Vec<_>>());
+        let p_marginal = Distribution1D::new(p_integral.to_vec());
 
         Self {
             p_conditional_v,

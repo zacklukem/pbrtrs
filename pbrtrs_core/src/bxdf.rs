@@ -10,10 +10,8 @@ use crate::material::TransportMode;
 use crate::types::color::BLACK;
 use crate::types::scalar::consts::{FRAC_1_PI, PI};
 use crate::types::{color, scalar, Color, Scalar, Vec3};
-use crate::util::{
-    bitfield_methods, random_cos_sample_hemisphere, random_unit_vec, reflect, NormalBasisVector,
-};
-use cgmath::{point3, vec3, Array, ElementWise, InnerSpace, One, Zero};
+use crate::util::{bitfield_methods, random_cos_sample_hemisphere, reflect, NormalBasisVector};
+use cgmath::{point3, vec3, Array, ElementWise, InnerSpace, Zero};
 use smallvec::SmallVec;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -178,6 +176,7 @@ fn fr_dielectric(mut cos_i: Scalar, mut eta_i: Scalar, mut eta_t: Scalar) -> Sca
     (r_parl.powi(2) + r_perp.powi(2)) / 2.0
 }
 
+#[allow(unused)]
 fn schlick_r0_from_eta(eta: Scalar) -> Scalar {
     (eta - 1.0).powi(2) / (eta + 1.0).powi(2)
 }

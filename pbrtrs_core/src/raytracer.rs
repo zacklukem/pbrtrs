@@ -1,16 +1,16 @@
 use crate::bxdf::BxDFKind;
 use crate::debugger;
 use crate::intersect::PossibleIntersection;
-use crate::light::hdri::Hdri;
-use crate::light::{estimate_direct, sample_one_light, LightKind, LightTrait};
-use crate::material::{EmptyMaterial, Material, TransportMode};
-use crate::scene::{DisneyMaterial, Scene, Shape};
+
+use crate::light::{sample_one_light, LightKind, LightTrait};
+use crate::material::{Material, TransportMode};
+use crate::scene::{DisneyMaterial, Scene};
 use crate::types::color::{BLACK, WHITE};
-use crate::types::{color, scalar, Pt3, Scalar, Vec3};
+use crate::types::{scalar, Vec3};
 use crate::types::{Color, Ray};
 use crate::util::max_value3;
 use bumpalo::Bump;
-use cgmath::{vec3, ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Zero};
+use cgmath::{ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Zero};
 
 pub fn ray_color<'arena>(ray: &Ray, scene: &Scene, arena: &'arena Bump) -> Color {
     let mut radiance = BLACK;

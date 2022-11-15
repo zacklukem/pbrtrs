@@ -2,7 +2,7 @@
 pub mod inner {
     use crate::scene::Scene;
     use crate::types::color::BLACK;
-    use crate::types::{color, Color, Ray};
+    use crate::types::{Color, Ray};
     use std::cell::RefCell;
     use std::fmt::{Arguments, Write};
     use std::io::{Result as IoResult, Write as IoWrite};

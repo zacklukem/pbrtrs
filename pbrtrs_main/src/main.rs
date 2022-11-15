@@ -10,18 +10,17 @@ extern crate threadpool;
 
 mod image_tiler;
 
-use pbrtrs_core::types::{scalar, Color, Mat3, R8G8B8Color, Ray, Scalar};
-use pbrtrs_core::{debugger, postprocess};
+use pbrtrs_core::debugger;
+use pbrtrs_core::types::{scalar, Color, Mat3, Ray, Scalar};
 use std::fmt::{Display, Formatter};
 
 use bumpalo::Bump;
 use cgmath::{vec3, EuclideanSpace, InnerSpace};
-use image::{DynamicImage, Rgb, Rgb32FImage};
+use image::{Rgb, Rgb32FImage};
 use image_tiler::{ImageTile, ImageTileGenerator};
 use pbrtrs_core::raytracer::ray_color;
 use pbrtrs_core::scene::load_scene;
 use pbrtrs_core::util::random_concentric_disk;
-use rayon::prelude::*;
 use std::num::NonZeroUsize;
 use std::process::Command;
 use std::sync::{mpsc, Arc};
@@ -238,6 +237,7 @@ fn main() {
 
     #[cfg(feature = "enable_oidn")]
     {
+        use pbrtrs_core::postprocess;
         println!("Denoising");
         let time = Instant::now();
         postprocess::denoise(&mut output_image);

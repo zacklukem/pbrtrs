@@ -1,12 +1,9 @@
-use crate::debugger;
 use crate::light::{AreaLight, Light};
 use crate::material::{EmptyMaterial, Material};
 use crate::scene::{Object, SampledDisneyMaterial, Scene, Shape};
 use crate::types::scalar::consts::PI;
-use crate::types::{Mat4, Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
-use cgmath::{
-    point2, point3, vec3, EuclideanSpace, InnerSpace, MetricSpace, Rotation, Transform, Zero,
-};
+use crate::types::{Pt2, Pt3, Quaternion, Ray, Scalar, Vec3};
+use cgmath::{point2, point3, vec3, EuclideanSpace, InnerSpace, Rotation};
 
 pub struct Intersection<'a, M, O> {
     pub distance: Scalar,
@@ -212,11 +209,10 @@ impl Scene {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::material::EmptyMaterial;
-    use crate::types::Mat4;
-    use cgmath::{point3, vec3, Rad, Rotation3};
+    use cgmath::Zero;
 
     #[test]
     fn sphere_intersect() {

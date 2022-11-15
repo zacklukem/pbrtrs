@@ -1,6 +1,6 @@
 use crate::types::scalar::consts::{FRAC_PI_2, FRAC_PI_4};
 use crate::types::{scalar, Pt2, Pt3, Scalar, Vec3};
-use cgmath::{point2, vec2, vec3, EuclideanSpace, InnerSpace};
+use cgmath::{point2, vec3, EuclideanSpace, InnerSpace};
 
 pub fn max_value3(v: Pt3) -> Scalar {
     if v[0] > v[1] && v[0] > v[2] {
@@ -153,31 +153,37 @@ impl NormalBasisVector<Scalar> for Vec3 {
 macro_rules! bitfield_methods {
     ($ty_name: ident) => {
         impl $ty_name {
+            #[allow(unused)]
             #[inline(always)]
             pub const fn set(self, other: Self) -> Self {
                 Self(self.0 | other.0)
             }
 
+            #[allow(unused)]
             #[inline(always)]
             pub const fn unset(self, other: Self) -> Self {
                 Self(self.0 & !other.0)
             }
 
+            #[allow(unused)]
             #[inline(always)]
             pub const fn mask(self, other: Self) -> Self {
                 Self(self.0 & other.0)
             }
 
+            #[allow(unused)]
             #[inline(always)]
             pub const fn not(self) -> Self {
                 Self(!self.0)
             }
 
+            #[allow(unused)]
             #[inline(always)]
             pub const fn has(self, other: Self) -> bool {
                 self.0 & other.0 != 0
             }
 
+            #[allow(unused)]
             #[inline(always)]
             pub const fn matches(self, other: Self) -> bool {
                 (self.0 & other.0) == self.0

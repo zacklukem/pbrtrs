@@ -1,15 +1,15 @@
-use crate::types::scalar::consts::PI;
-use crate::types::{color, Color, Euler, Mat4, Pt2, Pt3, Quaternion, Scalar, Vec3};
 
-use cgmath::{vec3, EuclideanSpace, InnerSpace, Rad, Zero};
-use image::{ImageBuffer, Luma, Pixel, Rgb, Rgb32FImage};
+use crate::types::{color, Color, Euler, Pt2, Pt3, Quaternion, Scalar, Vec3};
+
+use cgmath::{EuclideanSpace, InnerSpace, Rad, Zero};
+use image::{ImageBuffer, Luma, Pixel, Rgb};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
-use crate::bxdf::TransmissionSpecular;
+
 use crate::light::hdri::Hdri;
 use crate::light::{AmbientLight, AreaLight, DirectionLight, Light, PointLight, SpotLight};
 use crate::types::R8G8B8Color;

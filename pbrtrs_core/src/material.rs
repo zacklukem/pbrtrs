@@ -1,7 +1,6 @@
 use crate::bxdf::distribution::TrowbridgeReitzDistribution;
 use crate::bxdf::{
-    BxDF, FresnelDielectric, FresnelSchlick, FresnelSpecular, Lambertian, MicrofacetReflection,
-    ReflectionSpecular, TransmissionSpecular, BSDF,
+    BxDF, FresnelSchlick, FresnelSpecular, Lambertian, MicrofacetReflection, BSDF,
 };
 use crate::intersect::Intersection;
 use crate::scene::{DisneyMaterial, SampledDisneyMaterial};
